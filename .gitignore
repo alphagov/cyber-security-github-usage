@@ -1,0 +1,6 @@
+.idea
+lambda/setup.cfg
+lambda/.target
+lambda/*.zip
+terraform/deployable/.terraform
+terraform/deployments
