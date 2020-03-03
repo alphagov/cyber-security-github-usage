@@ -5,60 +5,61 @@ import boto3
 import botocore
 import requests
 
+from event_parser import parse_messages
 from logger import LOG
-
 
 TOKEN_PREFIX = "/alert-processor/tokens/github/"
 
 
-def process_notification(notification):
+def process_event(event):
+    """
+    Read SNS messages from event and pass to notification handler
+    """
+    messages = parse_messages(event)
+    for message in messages:
+        process_message(message)
+
+
+def process_message(message):
     """
     Receive event body forwarded from lambda handler.
     """
-    actions = {
-        "register": register,
-        "commit": commit,
-        "usage": usage
-    }
-    action = notification["action"]
+    actions = {"register": register, "commit": commit, "usage": usage}
+    action = message["action"]
     process_action = actions[action]
-    success = process_action(notification)
+    success = process_action(message)
     if not success:
         LOG.error(f"Processing failed for {action}")
     return success
 
 
-def get_ssm_param(param:str) -> str:
+def get_ssm_param(param: str) -> str:
     """ Get parameter by path and return value """
     try:
         client = boto3.client("ssm")
-        response = client.get_parameter(
-            Name=param,
-            WithDecryption=True
-        )
-        value = response["Value"]
-    except botocore.exceptions.ClientError as err:
+        response = client.get_parameter(Name=param, WithDecryption=True)
+        if "Parameter" in response:
+            value = response["Parameter"]["Value"]
+        else: 
+            value = None
+    except (botocore.exceptions.ClientError, KeyError) as err:
         LOG.error(f"Failed to get SSM param: {param}: {err}")
         value = None
     return value
 
 
-def get_ssm_params(path:str) -> str:
+def get_ssm_params(path: str) -> dict:
     """ Get parameter by path and return value """
     try:
         has_next_page = True
         next_token = None
-        params = []
+        params = {}
         while has_next_page:
             client = boto3.client("ssm")
-            params = {
-                "Path": path,
-                "Recursive": True,
-                "WithDecryption": True
-            }
+            request = {"Path": path, "Recursive": True, "WithDecryption": True}
             if next_token:
-                params["NextToken"] = next_token
-            response = client.get_parameters_by_path(**params)
+                request["NextToken"] = next_token
+            response = client.get_parameters_by_path(**request)
 
             # Iterate parameters in response and append to dictionary
             for param in response["Parameters"]:
@@ -73,20 +74,17 @@ def get_ssm_params(path:str) -> str:
                 next_token = None
 
     except botocore.exceptions.ClientError as err:
-        LOG.error(f"Failed to get SSM param: {param}: {err}")
+        LOG.error(f"Failed to get SSM params on path: {path}: {err}")
         params = []
     return params
 
 
-def set_ssm_param(param, value):
+def set_ssm_param(param:str, value:str) -> bool:
     """ Write param to SSM and return success status """
     try:
         client = boto3.client("ssm")
         response = client.put_parameter(
-            Name=param,
-            Value=value,
-            Type='SecureString',
-            Overwrite=True
+            Name=param, Value=value, Type="SecureString", Overwrite=True
         )
         success = "Version" in response
     except botocore.exceptions.ClientError as err:
@@ -95,19 +93,44 @@ def set_ssm_param(param, value):
     return success
 
 
-def get_github_org_members(token):
-    """ Get all paged list of members from GitHub rest API """
-    org = os.environ.get("GITHUB_ORG")
+def delete_ssm_param(param:str) -> bool:
+    """ Delete SSM parameter and return status """
+    try:
+        client = boto3.client("ssm")
+        response = client.delete_parameter(
+            Name=param
+        )
+        #  delete parameter returns an empty dict
+        success = response == {}
+    except botocore.exceptions.ClientError as err:
+        LOG.error(f"Failed to set SSM param: {param}: {err}")
+        success = False
+    return success
 
+
+def get_github_org_members(org:str, token:str) -> list:
+    """ Get all paged list of members from GitHub rest API """
     page = 1
     page_items = 1
     members = []
     while page_items > 0:
+        page_items = 0
         url = f"https://api.github.com/orgs/{org}/members?page={page}"
-        response = requests.get(url).json()
-        page_items = response.count()
-        for user in response:
-            members.append(user["login"])
+        headers = {
+            "authorization": f"token {token}"
+        }
+        response = requests.get(url, headers=headers).json()
+        if type(response) is list:
+            print(f"Got member page {page}")
+            LOG.debug(str(response))
+            page_items = len(response)
+            for user in response:
+                members.append(user["login"])
+        else:
+            print(str(response))
+        page += 1
+
+    print(f"Found {org} members: "+str(len(members)))
 
     return members
 
@@ -134,14 +157,35 @@ def commit(notification):
     """
     return True
 
+
 def usage(notification):
     """
     Compare registered users to org membership.
     """
-    access_token_param = "/github/usage/pat"
+    access_token_param = os.environ.get("GITHUB_TOKEN")
     access_token = get_ssm_param(access_token_param)
     user_tokens = get_ssm_params(TOKEN_PREFIX)
-    members = get_github_org_members(access_token)
 
+    org = os.environ.get("GITHUB_ORG")
+    members = get_github_org_members(org, access_token)
+    member_count = len(members)
+    removed = 0
 
-    return user_tokens
+    if member_count > 0:
+        for username in user_tokens.keys():
+            if username not in members:
+                deleted = delete_ssm_param(f"{TOKEN_PREFIX}{username}")
+                del user_tokens[username]
+                removed += 1
+
+    registered_count = len(user_tokens.keys())
+    coverage = 100 * registered_count / member_count
+    stats = {
+        "org": org,
+        "registered": registered_count,
+        "removed": removed,
+        "members": member_count,
+        "users": [*user_tokens],
+        "percent_coverage": f"{coverage:.1f}"
+    }
+    return stats

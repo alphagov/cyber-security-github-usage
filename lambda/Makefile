@@ -53,9 +53,9 @@ copy_dir:
 
 build: clean target_dir add_deps copy_dir
 
-run: build
-	cd .target; python3 run.py
+run:
+	python3 run.py
 
 zip: build
-	cd .target; zip -X -9 ../dns-record-checker.zip -r .
+	cd .target; zip -X -9 ../github_usage_lambda.zip -r .
 	echo "✔️ zip file built!"
