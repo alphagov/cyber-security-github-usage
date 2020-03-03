@@ -28,6 +28,19 @@ data "aws_iam_policy_document" "github_usage_policy_document" {
       "*"
     ]
   }
+
+  statement {
+    effect = "Allow"
+
+    actions = [
+      "ssm:PutParameter",
+      "ssm:DeleteParameter"
+    ]
+
+    resources = [
+      "arn:aws:ssm:eu-west-2:103495720024:parameter/alert-processor/tokens/github/*"
+    ]
+  }
 }
 
 resource "aws_iam_policy" "github_usage_policy" {
