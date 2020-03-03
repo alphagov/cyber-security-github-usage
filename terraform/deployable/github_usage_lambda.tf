@@ -13,6 +13,8 @@ resource "aws_lambda_function" "github_usage_lambda" {
     variables = {
       ENVIRONMENT   = var.ENVIRONMENT
       LOGLEVEL      = "DEBUG"
+      GITHUB_ORG    = var.GITHUB_ORG
+      GITHUB_TOKEN  = var.GITHUB_TOKEN
     }
   }
 }
