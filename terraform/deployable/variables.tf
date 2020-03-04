@@ -12,3 +12,14 @@ variable "GITHUB_TOKEN" {
   description = "SSM path for a personal access token with read:user and read:org permissions"
   type        = string
 }
+
+variable "LOG_LEVEL" {
+  description = "Set the lambda log level"
+  type        = string
+  default     = "ERROR"
+}
+
+variable "cron_schedule" {
+  description = "Report usage to splunk on a regular basis"
+  type        = string
+}

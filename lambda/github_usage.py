@@ -121,16 +121,15 @@ def get_github_org_members(org:str, token:str) -> list:
         }
         response = requests.get(url, headers=headers).json()
         if type(response) is list:
-            print(f"Got member page {page}")
-            LOG.debug(str(response))
+            LOG.debug("Got member page %s", page)
             page_items = len(response)
             for user in response:
                 members.append(user["login"])
         else:
-            print(str(response))
+            LOG.error(str(response))
         page += 1
 
-    print(f"Found {org} members: "+str(len(members)))
+    LOG.debug(f"Found %s members: %s", org, str(len(members)))
 
     return members
 
@@ -188,4 +187,5 @@ def usage(notification):
         "users": [*user_tokens],
         "percent_coverage": f"{coverage:.1f}"
     }
+    LOG.debug(str(stats))
     return stats

@@ -12,9 +12,30 @@ resource "aws_lambda_function" "github_usage_lambda" {
   environment {
     variables = {
       ENVIRONMENT   = var.ENVIRONMENT
-      LOGLEVEL      = "DEBUG"
       GITHUB_ORG    = var.GITHUB_ORG
       GITHUB_TOKEN  = var.GITHUB_TOKEN
+      LOG_LEVEL     = var.LOG_LEVEL
     }
   }
 }
+
+resource "aws_cloudwatch_event_rule" "run_schedule" {
+  name                = "run_schedule"
+  description         = "Run on cron schedule"
+  schedule_expression = var.cron_schedule
+}
+
+resource "aws_cloudwatch_event_target" "run_every_x_minutes" {
+  rule      = aws_cloudwatch_event_rule.run_schedule.name
+  target_id = aws_lambda_function.github_usage_lambda.function_name
+  arn       = aws_lambda_function.github_usage_lambda.arn
+}
+
+resource "aws_lambda_permission" "allow_cloudwatch_to_call_check_foo" {
+  statement_id  = "AllowExecutionFromCloudWatch"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.github_usage_lambda.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.run_schedule.arn
+}
+
