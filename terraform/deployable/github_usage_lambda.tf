@@ -20,7 +20,7 @@ resource "aws_lambda_function" "github_usage_lambda" {
 }
 
 resource "aws_cloudwatch_event_rule" "run_schedule" {
-  name                = "run_schedule"
+  name                = "github_usage_run_schedule"
   description         = "Run on cron schedule"
   schedule_expression = var.cron_schedule
 }
