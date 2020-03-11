@@ -1,3 +1,6 @@
+""" Test github_usage.py functions """
+import os
+
 import pytest
 import requests_mock
 
@@ -6,7 +9,10 @@ from github_usage import (
     TOKEN_PREFIX,
     get_github_org_members,
     get_ssm_params,
+    get_ssm_param,
+    delete_ssm_param,
     process_message,
+    usage,
 )
 
 
@@ -20,7 +26,7 @@ def test_process_message():
 
 def test_get_routing_options():
     """Test routing get_routing_options function"""
-    stubber = stubs.mock_ssm()
+    stubber = stubs.mock_ssm_get_parameters_by_path()
 
     with stubber:
         ssm_params = get_ssm_params(TOKEN_PREFIX)
@@ -34,13 +40,12 @@ def test_get_routing_options():
 @pytest.mark.usefixtures("github_members_page_2")
 @pytest.mark.usefixtures("github_members_page_3")
 @requests_mock.Mocker(kw="mocker")
-def test_send_to_splunk(
+def test_get_github_org_members(
     github_members_page_1, github_members_page_2, github_members_page_3, **args
 ):
     """Test using request mocker."""
     org = "testorg"
     token = "abc123"
-    # os.environ["GITHUB_ORG"] = org
 
     mocker = args["mocker"]
     mocker.get(
@@ -63,3 +68,47 @@ def test_send_to_splunk(
     assert "user-c" in members
     assert "user-j" in members
     assert "user-a" not in members
+
+
+@pytest.mark.usefixtures("github_members_page_1")
+@pytest.mark.usefixtures("github_members_page_2")
+@pytest.mark.usefixtures("github_members_page_3")
+@requests_mock.Mocker(kw="mocker")
+def test_usage(
+    github_members_page_1, github_members_page_2, github_members_page_3, **args
+):
+    """ Test mocked delete ssm param """
+    stubber = stubs.mock_ssm_usage()
+
+    token_var = "/github/usage/pat"
+    os.environ["GITHUB_TOKEN"] = token_var
+    org = "testorg"
+    os.environ["GITHUB_ORG"] = org
+
+    with stubber:
+        """Test using request mocker."""
+        token = "abc123"
+
+        mocker = args["mocker"]
+        mocker.get(
+            f"https://api.github.com/orgs/{org}/members?page=1",
+            request_headers={"Authorization": f"token {token}"},
+            text=github_members_page_1,
+        )
+        mocker.get(
+            f"https://api.github.com/orgs/{org}/members?page=2",
+            request_headers={"Authorization": f"token {token}"},
+            text=github_members_page_2,
+        )
+        mocker.get(
+            f"https://api.github.com/orgs/{org}/members?page=3",
+            request_headers={"Authorization": f"token {token}"},
+            text=github_members_page_3,
+        )
+
+        stats = usage()
+        assert stats["removed"] == 2
+        assert stats["members"] == 8
+        assert stats["registered"] == 2
+
+        stubber.deactivate()

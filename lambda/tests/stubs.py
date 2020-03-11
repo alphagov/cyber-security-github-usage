@@ -30,14 +30,14 @@ def mock_sts():
     return stubber
 
 
-def mock_ssm():
+def mock_ssm_get_parameters_by_path():
     _keep_it_real()
     client = boto3.real_client("ssm")
 
     stubber = Stubber(client)
 
     # mock get_function response
-    mock_get_parameters_by_path = {
+    mock_get_parameters_by_path_page_1 = {
         "Parameters": [
             {
                 "Name": "/alert-processor/tokens/github/user-a",
@@ -53,7 +53,7 @@ def mock_ssm():
 
     stubber.add_response(
         "get_parameters_by_path",
-        mock_get_parameters_by_path,
+        mock_get_parameters_by_path_page_1,
         {
             "Path": "/alert-processor/tokens/github/",
             "Recursive": True,
@@ -61,7 +61,7 @@ def mock_ssm():
         },
     )
 
-    mock_get_parameters_by_path = {
+    mock_get_parameters_by_path_page_2 = {
         "Parameters": [
             {
                 "Name": "/alert-processor/tokens/github/user-c",
@@ -76,13 +76,88 @@ def mock_ssm():
 
     stubber.add_response(
         "get_parameters_by_path",
-        mock_get_parameters_by_path,
+        mock_get_parameters_by_path_page_2,
         {
             "Path": "/alert-processor/tokens/github/",
             "Recursive": True,
             "WithDecryption": True,
             "NextToken": "page-2",
         },
+    )
+
+    stubber.activate()
+    # override boto.client to return the mock client
+    boto3.client = lambda service: client
+    return stubber
+
+
+def mock_ssm_usage():
+    _keep_it_real()
+    client = boto3.real_client("ssm")
+
+    stubber = Stubber(client)
+    get_parameter_response = {"Parameter": {"Value": "abc123"}}
+    stubber.add_response(
+        "get_parameter",
+        get_parameter_response,
+        {"Name": "/github/usage/pat", "WithDecryption": True},
+    )
+
+    # mock get_function response
+    mock_get_parameters_by_path_page_1 = {
+        "Parameters": [
+            {
+                "Name": "/alert-processor/tokens/github/user-a",
+                "Value": "github-token-a",
+            },
+            {
+                "Name": "/alert-processor/tokens/github/user-b",
+                "Value": "github-token-b",
+            },
+        ],
+        "NextToken": "page-2",
+    }
+
+    stubber.add_response(
+        "get_parameters_by_path",
+        mock_get_parameters_by_path_page_1,
+        {
+            "Path": "/alert-processor/tokens/github/",
+            "Recursive": True,
+            "WithDecryption": True,
+        },
+    )
+
+    mock_get_parameters_by_path_page_2 = {
+        "Parameters": [
+            {
+                "Name": "/alert-processor/tokens/github/user-c",
+                "Value": "github-token-c",
+            },
+            {
+                "Name": "/alert-processor/tokens/github/user-d",
+                "Value": "github-token-d",
+            },
+        ]
+    }
+
+    stubber.add_response(
+        "get_parameters_by_path",
+        mock_get_parameters_by_path_page_2,
+        {
+            "Path": "/alert-processor/tokens/github/",
+            "Recursive": True,
+            "WithDecryption": True,
+            "NextToken": "page-2",
+        },
+    )
+
+    stubber.add_response(
+        "delete_parameter", {}, {"Name": "/alert-processor/tokens/github/user-a"},
+    )
+
+    stubber.add_response(
+        "delete_parameter", {}, {"Name": "/alert-processor/tokens/github/user-b"},
     )
 
     stubber.activate()

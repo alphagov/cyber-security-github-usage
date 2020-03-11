@@ -166,12 +166,16 @@ def usage(message=None):
     member_count = len(members)
     removed = 0
 
+    removed_usernames = []
     if member_count > 0:
         for username in user_tokens.keys():
             if username not in members:
-                delete_ssm_param(f"{TOKEN_PREFIX}{username}")
-                del user_tokens[username]
-                removed += 1
+                removed_usernames.append(username)
+
+    for username in removed_usernames:
+        delete_ssm_param(f"{TOKEN_PREFIX}{username}")
+        del user_tokens[username]
+        removed += 1
 
     registered_count = len(user_tokens.keys())
     coverage = 100 * registered_count / member_count
