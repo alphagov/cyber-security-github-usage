@@ -9,8 +9,6 @@ from github_usage import (
     TOKEN_PREFIX,
     get_github_org_members,
     get_ssm_params,
-    get_ssm_param,
-    delete_ssm_param,
     process_message,
     usage,
 )
@@ -24,7 +22,7 @@ def test_process_message():
         assert process_message(message) is True
 
 
-def test_get_routing_options():
+def test_get_ssm_params():
     """Test routing get_routing_options function"""
     stubber = stubs.mock_ssm_get_parameters_by_path()
 
