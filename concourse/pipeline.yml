@@ -1,0 +1,277 @@
+---
+resources:
+
+  - name: cyber-security-github-usage-git
+    icon: github-circle
+    type: git
+    source:
+      uri: https://github.com/alphagov/cyber-security-github-usage.git
+      branch: eng-204
+      private_key: ((deploy-key))
+
+  - name: health-notification
+    type: http-api
+    source:
+      uri: https://((health_host_test))/?alert_type=concourse$&alert_name=health
+      method: POST
+      headers:
+        Authorization: "Bearer ((health_token_test))"
+      json:
+        service: "{service}"
+        state: "{health}"
+        message: "{message}"
+        pipeline: "{BUILD_PIPELINE_NAME}"
+        job: "{BUILD_JOB_NAME}"
+        build_number: "{BUILD_NAME}"
+      service: "github-usage"
+
+health_status_notify: &health_status_notify
+  put: health-notification
+
+resource_types:
+  - name: http-api
+    type: docker-image
+    source:
+      repository: gdscyber/http-api-resource
+      tag: 1.0a
+
+blocks:
+  - config: &cyber_build_config
+
+      platform: linux
+
+      image_resource:
+        type: docker-image
+        source:
+          repository: gdscyber/concourse-worker-health
+          tag: '1.2.8'
+
+jobs:
+  - name: lambda_test
+    plan:
+      - get: cyber-security-github-usage-git
+        trigger: true
+
+      - task: alert_processor_test
+        config:
+          <<: *cyber_build_config
+          inputs:
+          - name: cyber-security-github-usage-git
+          run:
+            path: /bin/bash
+            args:
+              - -exc
+              - |
+                cd lambda
+                pip install -r requirements-dev.txt
+                make test
+                echo "Linting and tests passed"
+            dir: cyber-security-github-usage-git
+        # on_failure:
+        #   <<: *health_status_notify
+        #   params:
+        #     message: "Cyber Security github_usage lambda tests failed"
+        #     health: unhealthy
+#
+#       - task: report_netcraft_test
+#         config:
+#           <<: *cyber_build_config
+#           inputs:
+#             - name: cyber-security-alert-processor-git
+#             - name: cyber-security-github-usage-git
+#           run:
+#             path: /bin/bash
+#             args:
+#               - -exc
+#               - |
+#                 cd lambda/report_netcraft
+#                 pip install -r requirements-dev.txt
+#                 make test
+#                 echo "Linting and tests passed"
+#             dir: cyber-security-alert-processor-git
+#             dir: cyber-security-github-usage-git
+#         on_failure:
+#           <<: *health_status_notify
+#           params:
+#             message: "Cyber Security report_netcraft lambda tests failed"
+#             health: unhealthy
+#
+#   - name: build_and_deploy
+#     plan:
+#       - get: cyber-security-alert-processor-git
+#       - get: cyber-security-github-usage-git
+#         trigger: true
+#         passed:
+#           - lambda_test
+#       - task: alert_controller_zip
+#         config:
+#           <<: *cyber_build_config
+#           inputs:
+#           - name: cyber-security-alert-processor-git
+#           - name: cyber-security-github-usage-git
+#           outputs:
+#           - name: alert_controller_lambda_package
+#           run:
+#             path: /bin/bash
+#             args:
+#               - -exc
+#               - |
+#                 cd lambda/alert_controller
+#                 make zip
+#                 mv alert_controller.zip ../../../alert_controller_lambda_package
+#                 echo "Built zip file for lambda distribution"
+#             dir: cyber-security-alert-processor-git
+#             dir: cyber-security-github-usage-git
+#         on_failure:
+#           <<: *health_status_notify
+#           params:
+#             message: "Failed to build alert_controller lambda zip file"
+#             health: unhealthy
+#
+#       - task: report_netcraft_zip
+#         config:
+#           <<: *cyber_build_config
+#           inputs:
+#             - name: cyber-security-alert-processor-git
+#             - name: cyber-security-github-usage-git
+#           outputs:
+#             - name: report_netcraft_lambda_package
+#           run:
+#             path: /bin/bash
+#             args:
+#               - -exc
+#               - |
+#                 cd lambda/report_netcraft
+#                 make zip
+#                 mv report_netcraft.zip ../../../report_netcraft_lambda_package
+#                 echo "Built zip file for lambda distribution"
+#             dir: cyber-security-alert-processor-git
+#             dir: cyber-security-github-usage-git
+#         on_failure:
+#           <<: *health_status_notify
+#           params:
+#             message: "Failed to build report_netcraft lambda zip file"
+#             health: unhealthy
+#
+#       - task: terraform_account_validate
+#         config:
+#           <<: *cyber_build_config
+#           inputs:
+#           - name: cyber-security-alert-processor-git
+#           - name: cyber-security-github-usage-git
+#           - name: alert_controller_lambda_package
+#           - name: report_netcraft_lambda_package
+#           run:
+#             path: /bin/bash
+#             args:
+#               - -exc
+#               - |
+#                 cd ..
+#                 cp alert_controller_lambda_package/alert_controller.zip cyber-security-alert-processor-git/lambda/alert_controller
+#                 cp alert_controller_lambda_package/alert_controller.zip cyber-security-github-usage-git/lambda/alert_controller
+#                 cp report_netcraft_lambda_package/report_netcraft.zip cyber-security-alert-processor-git/lambda/report_netcraft
+#                 cp report_netcraft_lambda_package/report_netcraft.zip cyber-security-github-usage-git/lambda/report_netcraft
+#                 workdir=$(pwd)
+#                 monitored_accounts=$(ls cyber-security-alert-processor-git/terraform/deployments)
+#                 monitored_accounts=$(ls cyber-security-github-usage-git/terraform/deployments)
+#                 cd cyber-security-alert-processor-git
+#                 cd cyber-security-github-usage-git
+#                 cd terraform/deployable
+#                 for account_id in $monitored_accounts; do
+#                   target_arn="arn:aws:iam::${account_id}:role/AlertProcessorConcourseWorkerRole"
+#                   source sts-assume-role.sh $target_arn
+#                   terraform init -reconfigure -backend-config=../deployments/${account_id}/backend.tfvars
+#                   terraform validate
+#                 done
+#                 echo "Terraform valid"
+#             dir: cyber-security-alert-processor-git
+#             dir: cyber-security-github-usage-git
+#         on_failure:
+#           <<: *health_status_notify
+#           params:
+#             message: "Failed to validate alert processor terraform"
+#             health: unhealthy
+#
+#       - task: apply_terraform_to_staging
+#         config:
+#           <<: *cyber_build_config
+#           inputs:
+#             - name: cyber-security-alert-processor-git
+#             - name: cyber-security-github-usage-git
+#             - name: alert_controller_lambda_package
+#             - name: report_netcraft_lambda_package
+#           run:
+#             path: /bin/bash
+#             args:
+#               - -exc
+#               - |
+#                 cd ..
+#                 workdir=$(pwd)
+#                 cp alert_controller_lambda_package/alert_controller.zip cyber-security-alert-processor-git/lambda/alert_controller
+#                 cp report_netcraft_lambda_package/report_netcraft.zip cyber-security-alert-processor-git/lambda/report_netcraft
+#                 monitored_accounts=$(ls cyber-security-alert-processor-git/terraform/deployments)
+#                 cd cyber-security-alert-processor-git
+#                 cd terraform/deployable
+#                 for account_id in $monitored_accounts; do
+#                   env=$(grep environment ../deployments/${account_id}/apply.tfvars | tr '"' ' ' | awk {' print $3 '})
+#                   echo "${account_id} is a ${env} environment"
+#                   if [[ $env != 'prod' ]]; then
+#                     target_arn="arn:aws:iam::${account_id}:role/AlertProcessorConcourseWorkerRole"
+#                     source sts-assume-role.sh $target_arn
+#                     terraform init -reconfigure -backend-config=../deployments/${account_id}/backend.tfvars
+#                     terraform plan -var-file=../deployments/${account_id}/apply.tfvars
+#                     terraform apply --auto-approve -var-file=../deployments/${account_id}/apply.tfvars
+#                   else
+#                     echo "${account_id} is a production account - Not deploying at this stage"
+#                   fi
+#                 done
+#             dir: cyber-security-alert-processor-git
+#         on_failure:
+#           <<: *health_status_notify
+#           params:
+#             message: "Failed to deploy cyber-security-alert-processor to staging"
+#             health: unhealthy
+#
+#       - task: apply_terraform_to_production
+#         config:
+#           <<: *cyber_build_config
+#           inputs:
+#           - name: cyber-security-alert-processor-git
+#           - name: alert_controller_lambda_package
+#           - name: report_netcraft_lambda_package
+#           run:
+#             path: /bin/bash
+#             args:
+#               - -exc
+#               - |
+#                 cd ..
+#                 workdir=$(pwd)
+#                 cp alert_controller_lambda_package/alert_controller.zip cyber-security-alert-processor-git/lambda/alert_controller
+#                 cp report_netcraft_lambda_package/report_netcraft.zip cyber-security-alert-processor-git/lambda/report_netcraft
+#                 monitored_accounts=$(ls cyber-security-alert-processor-git/terraform/deployments)
+#                 cd cyber-security-alert-processor-git
+#                 cd terraform/deployable
+#                 for account_id in $monitored_accounts; do
+#                   env=$(grep environment ../deployments/${account_id}/apply.tfvars | tr '"' ' ' | awk {' print $3 '})
+#                   echo "${account_id} is a ${env} environment"
+#                   if [[ $env == 'prod' ]]; then
+#                     target_arn="arn:aws:iam::${account_id}:role/AlertProcessorConcourseWorkerRole"
+#                     source sts-assume-role.sh $target_arn
+#                     terraform init -reconfigure -backend-config=../deployments/${account_id}/backend.tfvars
+#                     terraform plan -var-file=../deployments/${account_id}/apply.tfvars
+#                     terraform apply --auto-approve -var-file=../deployments/${account_id}/apply.tfvars
+#                   else
+#                     echo "${account_id} is not a production account - Not deploying at this stage"
+#                   fi
+#                 done
+#             dir: cyber-security-alert-processor-git
+#         on_success:
+#           <<: *health_status_notify
+#           params:
+#             message: "Deployed cyber-security-alert-processor to production"
+#             health: healthy
+#         on_failure:
+#           <<: *health_status_notify
+#           params:
+#             message: "Failed to deploy cyber-security-alert-processor to production"
+#             health: unhealthy
