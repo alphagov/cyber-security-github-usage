@@ -73,32 +73,8 @@ jobs:
         #     message: "Cyber Security github_usage lambda tests failed"
         #     health: unhealthy
 #
-#       - task: report_netcraft_test
-#         config:
-#           <<: *cyber_build_config
-#           inputs:
-#             - name: cyber-security-alert-processor-git
-#             - name: cyber-security-github-usage-git
-#           run:
-#             path: /bin/bash
-#             args:
-#               - -exc
-#               - |
-#                 cd lambda/report_netcraft
-#                 pip install -r requirements-dev.txt
-#                 make test
-#                 echo "Linting and tests passed"
-#             dir: cyber-security-alert-processor-git
-#             dir: cyber-security-github-usage-git
-#         on_failure:
-#           <<: *health_status_notify
-#           params:
-#             message: "Cyber Security report_netcraft lambda tests failed"
-#             health: unhealthy
-#
 #   - name: build_and_deploy
 #     plan:
-#       - get: cyber-security-alert-processor-git
 #       - get: cyber-security-github-usage-git
 #         trigger: true
 #         passed:
@@ -107,7 +83,6 @@ jobs:
 #         config:
 #           <<: *cyber_build_config
 #           inputs:
-#           - name: cyber-security-alert-processor-git
 #           - name: cyber-security-github-usage-git
 #           outputs:
 #           - name: alert_controller_lambda_package
@@ -116,11 +91,10 @@ jobs:
 #             args:
 #               - -exc
 #               - |
-#                 cd lambda/alert_controller
+#                 cd lambda
 #                 make zip
-#                 mv alert_controller.zip ../../../alert_controller_lambda_package
+#                 mv github_usage.zip ../../../github_usage_lambda_package
 #                 echo "Built zip file for lambda distribution"
-#             dir: cyber-security-alert-processor-git
 #             dir: cyber-security-github-usage-git
 #         on_failure:
 #           <<: *health_status_notify
@@ -128,36 +102,10 @@ jobs:
 #             message: "Failed to build alert_controller lambda zip file"
 #             health: unhealthy
 #
-#       - task: report_netcraft_zip
-#         config:
-#           <<: *cyber_build_config
-#           inputs:
-#             - name: cyber-security-alert-processor-git
-#             - name: cyber-security-github-usage-git
-#           outputs:
-#             - name: report_netcraft_lambda_package
-#           run:
-#             path: /bin/bash
-#             args:
-#               - -exc
-#               - |
-#                 cd lambda/report_netcraft
-#                 make zip
-#                 mv report_netcraft.zip ../../../report_netcraft_lambda_package
-#                 echo "Built zip file for lambda distribution"
-#             dir: cyber-security-alert-processor-git
-#             dir: cyber-security-github-usage-git
-#         on_failure:
-#           <<: *health_status_notify
-#           params:
-#             message: "Failed to build report_netcraft lambda zip file"
-#             health: unhealthy
-#
 #       - task: terraform_account_validate
 #         config:
 #           <<: *cyber_build_config
 #           inputs:
-#           - name: cyber-security-alert-processor-git
 #           - name: cyber-security-github-usage-git
 #           - name: alert_controller_lambda_package
 #           - name: report_netcraft_lambda_package
@@ -167,12 +115,9 @@ jobs:
 #               - -exc
 #               - |
 #                 cd ..
-#                 cp alert_controller_lambda_package/alert_controller.zip cyber-security-alert-processor-git/lambda/alert_controller
 #                 cp alert_controller_lambda_package/alert_controller.zip cyber-security-github-usage-git/lambda/alert_controller
-#                 cp report_netcraft_lambda_package/report_netcraft.zip cyber-security-alert-processor-git/lambda/report_netcraft
 #                 cp report_netcraft_lambda_package/report_netcraft.zip cyber-security-github-usage-git/lambda/report_netcraft
 #                 workdir=$(pwd)
-#                 monitored_accounts=$(ls cyber-security-alert-processor-git/terraform/deployments)
 #                 monitored_accounts=$(ls cyber-security-github-usage-git/terraform/deployments)
 #                 cd cyber-security-alert-processor-git
 #                 cd cyber-security-github-usage-git
@@ -196,7 +141,6 @@ jobs:
 #         config:
 #           <<: *cyber_build_config
 #           inputs:
-#             - name: cyber-security-alert-processor-git
 #             - name: cyber-security-github-usage-git
 #             - name: alert_controller_lambda_package
 #             - name: report_netcraft_lambda_package
@@ -207,7 +151,6 @@ jobs:
 #               - |
 #                 cd ..
 #                 workdir=$(pwd)
-#                 cp alert_controller_lambda_package/alert_controller.zip cyber-security-alert-processor-git/lambda/alert_controller
 #                 cp report_netcraft_lambda_package/report_netcraft.zip cyber-security-alert-processor-git/lambda/report_netcraft
 #                 monitored_accounts=$(ls cyber-security-alert-processor-git/terraform/deployments)
 #                 cd cyber-security-alert-processor-git
