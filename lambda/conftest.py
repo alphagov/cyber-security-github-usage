@@ -21,6 +21,35 @@ def event_body():
     return get_event_body()
 
 
+@pytest.fixture()
+def github_members_page_1():
+    return json.dumps(
+        [
+            {"login": "user-c"},
+            {"login": "user-d"},
+            {"login": "user-e"},
+            {"login": "user-f"},
+        ]
+    )
+
+
+@pytest.fixture()
+def github_members_page_2():
+    return json.dumps(
+        [
+            {"login": "user-g"},
+            {"login": "user-h"},
+            {"login": "user-i"},
+            {"login": "user-j"},
+        ]
+    )
+
+
+@pytest.fixture()
+def github_members_page_3():
+    return json.dumps([])
+
+
 # @pytest.fixture()
 # def ssm_params():
 #     """ Attach get_ssm_params function to a pytest fixture """

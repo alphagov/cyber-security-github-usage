@@ -4,3 +4,4 @@ pytest
 isort
 pylint
 flake8
+requests_mock
