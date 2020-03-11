@@ -32,11 +32,6 @@ install:
 	pip install -r requirements-dev.txt
 	echo "✔️ Pip dependencies installed!"
 
-upgrade:
-	set -e
-	wget -q https://raw.githubusercontent.com/alphagov/cyber-security-tools/master/python/Makefile -O Makefile
-	echo "✔️ Upgraded Makefile!"
-
 watch:
 	echo "✔️ Watch setup, save a python file to trigger test pipeline"
 	watchmedo shell-command --drop --ignore-directories --patterns="*.py" --ignore-patterns="*#*" --recursive --command='clear && make --no-print-directory test' .
