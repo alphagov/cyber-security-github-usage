@@ -4,3 +4,5 @@ lambda/.target
 lambda/*.zip
 terraform/deployable/.terraform
 terraform/deployments
+*.pytest_cache
+*__pycache__
