@@ -6,7 +6,7 @@ resources:
     type: git
     source:
       uri: https://github.com/alphagov/cyber-security-github-usage.git
-      branch: eng-204
+      branch: eng-220
       private_key: ((deploy-key))
 
   - name: health-notification
@@ -52,7 +52,7 @@ jobs:
       - get: cyber-security-github-usage-git
         trigger: true
 
-      - task: alert_processor_test
+      - task: github_usage_test
         config:
           <<: *cyber_build_config
           inputs:
@@ -67,11 +67,11 @@ jobs:
                 make test
                 echo "Linting and tests passed"
             dir: cyber-security-github-usage-git
-        # on_failure:
-        #   <<: *health_status_notify
-        #   params:
-        #     message: "Cyber Security github_usage lambda tests failed"
-        #     health: unhealthy
+        on_failure:
+          <<: *health_status_notify
+          params:
+            message: "Cyber Security github_usage lambda tests failed"
+            health: unhealthy
 #
 #   - name: build_and_deploy
 #     plan:
