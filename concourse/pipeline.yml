@@ -6,7 +6,7 @@ resources:
     type: git
     source:
       uri: https://github.com/alphagov/cyber-security-github-usage.git
-      branch: eng-220
+      branch: master
 
   - name: cyber-security-terraform-git
     icon: github-circle
@@ -250,7 +250,7 @@ jobs:
                       passed=false
                     fi
                   else
-                    echo "${account_id} is a production account - Not deploying at this stage"
+                    echo "${account_id} is a production account - Not invoking at this stage"
                   fi
                 done
 
@@ -264,49 +264,104 @@ jobs:
         on_failure:
           <<: *health_status_notify
           params:
-            message: "Failed to deploy cyber-security-github-usage to staging"
+            message: "Failed to invoke usage action in staging"
             health: unhealthy
-#
-#       - task: apply_terraform_to_production
-#         config:
-#           <<: *cyber_build_config
-#           inputs:
-#           - name: cyber-security-alert-processor-git
-#           - name: alert_controller_lambda_package
-#           - name: report_netcraft_lambda_package
-#           run:
-#             path: /bin/bash
-#             args:
-#               - -exc
-#               - |
-#                 cd ..
-#                 workdir=$(pwd)
-#                 cp alert_controller_lambda_package/alert_controller.zip cyber-security-alert-processor-git/lambda/alert_controller
-#                 cp report_netcraft_lambda_package/report_netcraft.zip cyber-security-alert-processor-git/lambda/report_netcraft
-#                 monitored_accounts=$(ls cyber-security-alert-processor-git/terraform/deployments)
-#                 cd cyber-security-alert-processor-git
-#                 cd terraform/deployable
-#                 for account_id in $monitored_accounts; do
-#                   env=$(grep environment ../deployments/${account_id}/apply.tfvars | tr '"' ' ' | awk {' print $3 '})
-#                   echo "${account_id} is a ${env} environment"
-#                   if [[ $env == 'prod' ]]; then
-#                     target_arn="arn:aws:iam::${account_id}:role/AlertProcessorConcourseWorkerRole"
-#                     source sts-assume-role.sh $target_arn
-#                     terraform init -reconfigure -backend-config=../deployments/${account_id}/backend.tfvars
-#                     terraform plan -var-file=../deployments/${account_id}/apply.tfvars
-#                     terraform apply --auto-approve -var-file=../deployments/${account_id}/apply.tfvars
-#                   else
-#                     echo "${account_id} is not a production account - Not deploying at this stage"
-#                   fi
-#                 done
-#             dir: cyber-security-alert-processor-git
-#         on_success:
-#           <<: *health_status_notify
-#           params:
-#             message: "Deployed cyber-security-alert-processor to production"
-#             health: healthy
-#         on_failure:
-#           <<: *health_status_notify
-#           params:
-#             message: "Failed to deploy cyber-security-alert-processor to production"
-#             health: unhealthy
+
+      - task: apply_terraform_to_prod
+        config:
+          <<: *cyber_build_config
+          inputs:
+            - name: cyber-security-github-usage-git
+            - name: cyber-security-terraform-git
+            - name: ssh
+            - name: lambda_package
+          run:
+            path: /bin/bash
+            args:
+              - -exc
+              - |
+                cd ..
+                cp lambda_package/github_usage_lambda.zip cyber-security-github-usage-git/lambda
+                workdir=$(pwd)
+                mkdir /root/.ssh
+                sed 's+{workdir}+'"$workdir"'/ssh+g' ssh/config > /root/.ssh/config
+                ln -fs ${workdir}/cyber-security-terraform-git/service/github_usage/deployments ${workdir}/cyber-security-github-usage-git/terraform
+                monitored_accounts=$(ls cyber-security-github-usage-git/terraform/deployments)
+                cd cyber-security-github-usage-git
+                cd terraform/deployable
+                for account_id in $monitored_accounts; do
+                  env=$(grep ENVIRONMENT ../deployments/${account_id}/apply.tfvars | tr '"' ' ' | awk {' print $3 '})
+                  echo "${account_id} is a ${env} environment"
+                  if [[ $env == 'prod' ]]; then
+                    target_arn="arn:aws:iam::${account_id}:role/GithubUsageConcourseWorkerRole"
+                    source sts-assume-role.sh $target_arn
+                    terraform init -reconfigure -backend-config=../deployments/${account_id}/backend.tfvars
+                    terraform plan -var-file=../deployments/${account_id}/apply.tfvars
+                    terraform apply --auto-approve -var-file=../deployments/${account_id}/apply.tfvars
+                  else
+                    echo "${account_id} is not a production account - Not deploying at this stage"
+                  fi
+                done
+            dir: cyber-security-github-usage-git
+        on_failure:
+          <<: *health_status_notify
+          params:
+            message: "Failed to deploy cyber-security-github-usage to prod"
+            health: unhealthy
+
+      - task: invoke_lambda_in_prod
+        config:
+          <<: *cyber_build_config
+          inputs:
+            - name: cyber-security-terraform-git
+          run:
+            path: /bin/bash
+            args:
+              - -exc
+              - |
+                passed=true
+                monitored_accounts=$(ls service/github_usage/deployments)
+                for account_id in $monitored_accounts; do
+                  env=$(grep ENVIRONMENT service/github_usage/deployments/${account_id}/apply.tfvars | tr '"' ' ' | awk {' print $3 '})
+                  echo "${account_id} is a ${env} environment"
+                  if [[ $env == 'prod' ]]; then
+                    target_arn="arn:aws:iam::${account_id}:role/GithubUsageConcourseWorkerRole"
+                    source sts-assume-role.sh $target_arn
+                    aws lambda invoke --function-name=github_usage_lambda --region=eu-west-2 response.json > status.json
+
+                    jq_type=$(cat response.json | jq -r type)
+                    if [[ $jq_type != 'array' ]]; then
+                      passed=false
+                    fi
+
+                    jq_length=$(cat response.json | jq -r length)
+                    if [[ "$jq_length" != '1' ]]; then
+                      passed=false
+                    fi
+
+                    status_code=$(cat status.json | jq -r .StatusCode)
+                    if [[ "$status_code" != "200" ]]; then
+                      passed=false
+                    fi
+                  else
+                    echo "${account_id} is not a production account - Not invoking at this stage"
+                  fi
+                done
+
+                if [ "$passed" = true ]; then
+                  echo "Passed"
+                else
+                  echo "Failed"
+                  exit 1
+                fi
+            dir: cyber-security-terraform-git
+        on_failure:
+          <<: *health_status_notify
+          params:
+            message: "Failed to invoke usage action in prod"
+            health: unhealthy
+        on_success:
+          <<: *health_status_notify
+          params:
+            message: "Pipeline completed successfully"
+            health: healthy
