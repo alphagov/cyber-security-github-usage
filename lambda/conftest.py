@@ -50,12 +50,6 @@ def github_members_page_3():
     return json.dumps([])
 
 
-# @pytest.fixture()
-# def ssm_params():
-#     """ Attach get_ssm_params function to a pytest fixture """
-#     return get_ssm_params()
-
-
 def get_event_body():
     """ Create event body """
     return {"action": "usage"}
@@ -89,19 +83,3 @@ def get_sns_event():
     sns_event = {"Records": [{"Sns": {"Message": json.dumps(message)}}]}
 
     return sns_event
-
-
-# def get_ssm_params():
-#     """ Mock ssm get-parameters-by-path response """
-#     return {
-#         "Parameters": [
-#             {
-#                 "Name": "/slack/channels/test-channel-1",
-#                 "Value": "https://test.chann.el/1/webhook/url"
-#             },
-#             {
-#                 "Name": "/slack/channels/test-channel-2",
-#                 "Value": "https://test.chann.el/2/webhook/url"
-#             }
-#         ]
-#     }
