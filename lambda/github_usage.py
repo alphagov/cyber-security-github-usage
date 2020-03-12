@@ -16,8 +16,11 @@ def process_event(event):
     Read SNS messages from event and pass to notification handler
     """
     messages = parse_messages(event)
+    responses = []
     for message in messages:
-        process_message(message)
+        response = process_message(message)
+        responses.append(response)
+    return responses
 
 
 def process_message(message):
