@@ -1,0 +1,7 @@
+-r requirements.txt
+black
+pytest
+isort
+pylint
+flake8
+requests_mock

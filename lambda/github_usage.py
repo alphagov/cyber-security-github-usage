@@ -16,8 +16,11 @@ def process_event(event):
     Read SNS messages from event and pass to notification handler
     """
     messages = parse_messages(event)
+    responses = []
     for message in messages:
-        process_message(message)
+        response = process_message(message)
+        responses.append(response)
+    return responses
 
 
 def process_message(message):
@@ -29,7 +32,7 @@ def process_message(message):
     process_action = actions[action]
     success = process_action(message)
     if not success:
-        LOG.error(f"Processing failed for {action}")
+        LOG.error("Processing failed for %s", action)
     return success
 
 
@@ -40,10 +43,10 @@ def get_ssm_param(param: str) -> str:
         response = client.get_parameter(Name=param, WithDecryption=True)
         if "Parameter" in response:
             value = response["Parameter"]["Value"]
-        else: 
+        else:
             value = None
     except (botocore.exceptions.ClientError, KeyError) as err:
-        LOG.error(f"Failed to get SSM param: {param}: {err}")
+        LOG.error("Failed to get SSM param: %s: %s", param, err)
         value = None
     return value
 
@@ -74,12 +77,12 @@ def get_ssm_params(path: str) -> dict:
                 next_token = None
 
     except botocore.exceptions.ClientError as err:
-        LOG.error(f"Failed to get SSM params on path: {path}: {err}")
+        LOG.error("Failed to get SSM params on path: %s: %s", path, err)
         params = []
     return params
 
 
-def set_ssm_param(param:str, value:str) -> bool:
+def set_ssm_param(param: str, value: str) -> bool:
     """ Write param to SSM and return success status """
     try:
         client = boto3.client("ssm")
@@ -88,27 +91,25 @@ def set_ssm_param(param:str, value:str) -> bool:
         )
         success = "Version" in response
     except botocore.exceptions.ClientError as err:
-        LOG.error(f"Failed to set SSM param: {param}: {err}")
+        LOG.error("Failed to set SSM param: %s: %s", param, err)
         success = False
     return success
 
 
-def delete_ssm_param(param:str) -> bool:
+def delete_ssm_param(param: str) -> bool:
     """ Delete SSM parameter and return status """
     try:
         client = boto3.client("ssm")
-        response = client.delete_parameter(
-            Name=param
-        )
+        response = client.delete_parameter(Name=param)
         #  delete parameter returns an empty dict
         success = response == {}
     except botocore.exceptions.ClientError as err:
-        LOG.error(f"Failed to set SSM param: {param}: {err}")
+        LOG.error("Failed to set SSM param: %s: %s", param, err)
         success = False
     return success
 
 
-def get_github_org_members(org:str, token:str) -> list:
+def get_github_org_members(org: str, token: str) -> list:
     """ Get all paged list of members from GitHub rest API """
     page = 1
     page_items = 1
@@ -116,11 +117,9 @@ def get_github_org_members(org:str, token:str) -> list:
     while page_items > 0:
         page_items = 0
         url = f"https://api.github.com/orgs/{org}/members?page={page}"
-        headers = {
-            "authorization": f"token {token}"
-        }
+        headers = {"authorization": f"token {token}"}
         response = requests.get(url, headers=headers).json()
-        if type(response) is list:
+        if isinstance(response, list):
             LOG.debug("Got member page %s", page)
             page_items = len(response)
             for user in response:
@@ -129,7 +128,7 @@ def get_github_org_members(org:str, token:str) -> list:
             LOG.error(str(response))
         page += 1
 
-    LOG.debug(f"Found %s members: %s", org, str(len(members)))
+    LOG.debug("Found %s members: %s", org, str(len(members)))
 
     return members
 
@@ -148,7 +147,7 @@ def register(notification):
     return param_set
 
 
-def commit(notification):
+def commit(message=None):
     """
     Record a commit event to splunk.
 
@@ -157,7 +156,7 @@ def commit(notification):
     return True
 
 
-def usage(notification):
+def usage(message=None):
     """
     Compare registered users to org membership.
     """
@@ -170,12 +169,16 @@ def usage(notification):
     member_count = len(members)
     removed = 0
 
+    removed_usernames = []
     if member_count > 0:
         for username in user_tokens.keys():
             if username not in members:
-                deleted = delete_ssm_param(f"{TOKEN_PREFIX}{username}")
-                del user_tokens[username]
-                removed += 1
+                removed_usernames.append(username)
+
+    for username in removed_usernames:
+        delete_ssm_param(f"{TOKEN_PREFIX}{username}")
+        del user_tokens[username]
+        removed += 1
 
     registered_count = len(user_tokens.keys())
     coverage = 100 * registered_count / member_count
@@ -185,7 +188,7 @@ def usage(notification):
         "removed": removed,
         "members": member_count,
         "users": [*user_tokens],
-        "percent_coverage": f"{coverage:.1f}"
+        "percent_coverage": f"{coverage:.1f}",
     }
     LOG.debug(str(stats))
     return stats

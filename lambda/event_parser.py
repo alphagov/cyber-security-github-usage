@@ -4,7 +4,6 @@ import json
 
 def get_message_body(message):
     """ Return json decoded message body from either SNS or SQS event model """
-    print(str(message))
     try:
         message_text = message["body"]
         # catch addict default behaviour for missing keys
@@ -19,7 +18,6 @@ def get_message_body(message):
     except (TypeError, json.JSONDecodeError):
         message_body = message_text
 
-    print(str(message_body))
     return message_body
 
 
@@ -27,12 +25,17 @@ def parse_messages(event):
     """
     Parse the escaped message body from each of the SQS messages in event.Records
     """
+    use_default = False
     if "Records" in event:
         messages = [get_message_body(record) for record in event["Records"]]
     elif "body" in event:
         messages = [get_message_body(event)]
+        if event["body"] == "":
+            use_default = True
     else:
-        default_message = { "action": "usage" }
+        use_default = True
+
+    if use_default:
+        default_message = {"action": "usage"}
         messages = [default_message]
-    print(str(messages))
     return messages

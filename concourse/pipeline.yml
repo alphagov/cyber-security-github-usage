@@ -1,0 +1,367 @@
+---
+resources:
+
+  - name: cyber-security-github-usage-git
+    icon: github-circle
+    type: git
+    source:
+      uri: https://github.com/alphagov/cyber-security-github-usage.git
+      branch: master
+
+  - name: cyber-security-terraform-git
+    icon: github-circle
+    type: git
+    source:
+      uri: git@github.com:alphagov/cyber-security-terraform.git
+      branch: master
+      private_key: ((cyber-security-terraform-deploy-key))
+      paths:
+        - service/github_usage/*
+
+  - name: health-notification
+    type: http-api
+    source:
+      uri: https://((health_host_test))/?alert_type=concourse$&alert_name=health
+      method: POST
+      headers:
+        Authorization: "Bearer ((health_token_test))"
+      json:
+        service: "{service}"
+        state: "{health}"
+        message: "{message}"
+        pipeline: "{BUILD_PIPELINE_NAME}"
+        job: "{BUILD_JOB_NAME}"
+        build_number: "{BUILD_NAME}"
+      service: "github-usage"
+
+health_status_notify: &health_status_notify
+  put: health-notification
+
+resource_types:
+  - name: http-api
+    type: docker-image
+    source:
+      repository: gdscyber/http-api-resource
+      tag: 1.0a
+
+blocks:
+  - config: &cyber_build_config
+
+      platform: linux
+
+      image_resource:
+        type: docker-image
+        source:
+          repository: gdscyber/concourse-worker-health
+          tag: '1.2.8'
+
+jobs:
+  - name: lambda_test
+    plan:
+      - get: cyber-security-github-usage-git
+        trigger: true
+
+      - task: github_usage_test
+        config:
+          <<: *cyber_build_config
+          inputs:
+          - name: cyber-security-github-usage-git
+          run:
+            path: /bin/bash
+            args:
+              - -exc
+              - |
+                cd lambda
+                pip install -r requirements-dev.txt
+                make test
+                echo "Linting and tests passed"
+            dir: cyber-security-github-usage-git
+        on_failure:
+          <<: *health_status_notify
+          params:
+            message: "Cyber Security github_usage lambda tests failed"
+            health: unhealthy
+
+  - name: build_and_deploy
+    plan:
+      - get: cyber-security-github-usage-git
+        trigger: true
+        passed:
+          - lambda_test
+      - get: cyber-security-terraform-git
+        trigger: false
+      - task: terraform_deploy_keys
+        config:
+          <<: *cyber_build_config
+          outputs:
+          - name: ssh
+          run:
+            path: /bin/bash
+            args:
+              - -exc
+              - |
+                cat > deploy_key <<'EOF'
+                ((cyber-security-terraform-deploy-key))
+                EOF
+                echo "Host github.com" > config
+                echo "  IdentityFile {workdir}/deploy_key" >> config
+                echo "  StrictHostKeyChecking no" >> config
+                chmod 400 deploy_key
+            dir: ssh
+        on_failure:
+          <<: *health_status_notify
+          params:
+            message: "Failed to set SSH config"
+            health: unhealthy
+
+      - task: github_usage_zip
+        config:
+          <<: *cyber_build_config
+          inputs:
+          - name: cyber-security-github-usage-git
+          outputs:
+          - name: lambda_package
+          run:
+            path: /bin/bash
+            args:
+              - -exc
+              - |
+                cd lambda
+                make zip
+                mv github_usage_lambda.zip ../../lambda_package
+                echo "Built zip file for lambda distribution"
+            dir: cyber-security-github-usage-git
+        on_failure:
+          <<: *health_status_notify
+          params:
+            message: "Failed to build github_usage lambda zip file"
+            health: unhealthy
+
+      - task: terraform_account_validate
+        config:
+          <<: *cyber_build_config
+          inputs:
+            - name: cyber-security-github-usage-git
+            - name: cyber-security-terraform-git
+            - name: ssh
+            - name: lambda_package
+          run:
+            path: /bin/bash
+            args:
+              - -exc
+              - |
+                cd ..
+                cp lambda_package/github_usage_lambda.zip cyber-security-github-usage-git/lambda
+                workdir=$(pwd)
+                mkdir /root/.ssh
+                sed 's+{workdir}+'"$workdir"'/ssh+g' ssh/config > /root/.ssh/config
+                ln -fs ${workdir}/cyber-security-terraform-git/service/github_usage/deployments ${workdir}/cyber-security-github-usage-git/terraform
+                monitored_accounts=$(ls cyber-security-github-usage-git/terraform/deployments)
+                cd cyber-security-github-usage-git
+                cd terraform/deployable
+                for account_id in $monitored_accounts; do
+                  target_arn="arn:aws:iam::${account_id}:role/GithubUsageConcourseWorkerRole"
+                  source sts-assume-role.sh $target_arn
+                  terraform init -reconfigure -backend-config=../deployments/${account_id}/backend.tfvars
+                  terraform validate
+                done
+                echo "Terraform valid"
+            dir: cyber-security-github-usage-git
+        on_failure:
+          <<: *health_status_notify
+          params:
+            message: "Failed to validate github usage terraform"
+            health: unhealthy
+
+      - task: apply_terraform_to_staging
+        config:
+          <<: *cyber_build_config
+          inputs:
+            - name: cyber-security-github-usage-git
+            - name: cyber-security-terraform-git
+            - name: ssh
+            - name: lambda_package
+          run:
+            path: /bin/bash
+            args:
+              - -exc
+              - |
+                cd ..
+                cp lambda_package/github_usage_lambda.zip cyber-security-github-usage-git/lambda
+                workdir=$(pwd)
+                mkdir /root/.ssh
+                sed 's+{workdir}+'"$workdir"'/ssh+g' ssh/config > /root/.ssh/config
+                ln -fs ${workdir}/cyber-security-terraform-git/service/github_usage/deployments ${workdir}/cyber-security-github-usage-git/terraform
+                monitored_accounts=$(ls cyber-security-github-usage-git/terraform/deployments)
+                cd cyber-security-github-usage-git
+                cd terraform/deployable
+                for account_id in $monitored_accounts; do
+                  env=$(grep ENVIRONMENT ../deployments/${account_id}/apply.tfvars | tr '"' ' ' | awk {' print $3 '})
+                  echo "${account_id} is a ${env} environment"
+                  if [[ $env != 'prod' ]]; then
+                    target_arn="arn:aws:iam::${account_id}:role/GithubUsageConcourseWorkerRole"
+                    source sts-assume-role.sh $target_arn
+                    terraform init -reconfigure -backend-config=../deployments/${account_id}/backend.tfvars
+                    terraform plan -var-file=../deployments/${account_id}/apply.tfvars
+                    terraform apply --auto-approve -var-file=../deployments/${account_id}/apply.tfvars
+                  else
+                    echo "${account_id} is a production account - Not deploying at this stage"
+                  fi
+                done
+            dir: cyber-security-github-usage-git
+        on_failure:
+          <<: *health_status_notify
+          params:
+            message: "Failed to deploy cyber-security-github-usage to staging"
+            health: unhealthy
+
+      - task: invoke_lambda_in_staging
+        config:
+          <<: *cyber_build_config
+          inputs:
+            - name: cyber-security-terraform-git
+          run:
+            path: /bin/bash
+            args:
+              - -exc
+              - |
+                passed=true
+                monitored_accounts=$(ls service/github_usage/deployments)
+                for account_id in $monitored_accounts; do
+                  env=$(grep ENVIRONMENT service/github_usage/deployments/${account_id}/apply.tfvars | tr '"' ' ' | awk {' print $3 '})
+                  echo "${account_id} is a ${env} environment"
+                  if [[ $env != 'prod' ]]; then
+                    target_arn="arn:aws:iam::${account_id}:role/GithubUsageConcourseWorkerRole"
+                    source sts-assume-role.sh $target_arn
+                    aws lambda invoke --function-name=github_usage_lambda --region=eu-west-2 response.json > status.json
+
+                    jq_type=$(cat response.json | jq -r type)
+                    if [[ $jq_type != 'array' ]]; then
+                      passed=false
+                    fi
+
+                    jq_length=$(cat response.json | jq -r length)
+                    if [[ "$jq_length" != '1' ]]; then
+                      passed=false
+                    fi
+
+                    status_code=$(cat status.json | jq -r .StatusCode)
+                    if [[ "$status_code" != "200" ]]; then
+                      passed=false
+                    fi
+                  else
+                    echo "${account_id} is a production account - Not invoking at this stage"
+                  fi
+                done
+
+                if [ "$passed" = true ]; then
+                  echo "Passed"
+                else
+                  echo "Failed"
+                  exit 1
+                fi
+            dir: cyber-security-terraform-git
+        on_failure:
+          <<: *health_status_notify
+          params:
+            message: "Failed to invoke usage action in staging"
+            health: unhealthy
+
+      - task: apply_terraform_to_prod
+        config:
+          <<: *cyber_build_config
+          inputs:
+            - name: cyber-security-github-usage-git
+            - name: cyber-security-terraform-git
+            - name: ssh
+            - name: lambda_package
+          run:
+            path: /bin/bash
+            args:
+              - -exc
+              - |
+                cd ..
+                cp lambda_package/github_usage_lambda.zip cyber-security-github-usage-git/lambda
+                workdir=$(pwd)
+                mkdir /root/.ssh
+                sed 's+{workdir}+'"$workdir"'/ssh+g' ssh/config > /root/.ssh/config
+                ln -fs ${workdir}/cyber-security-terraform-git/service/github_usage/deployments ${workdir}/cyber-security-github-usage-git/terraform
+                monitored_accounts=$(ls cyber-security-github-usage-git/terraform/deployments)
+                cd cyber-security-github-usage-git
+                cd terraform/deployable
+                for account_id in $monitored_accounts; do
+                  env=$(grep ENVIRONMENT ../deployments/${account_id}/apply.tfvars | tr '"' ' ' | awk {' print $3 '})
+                  echo "${account_id} is a ${env} environment"
+                  if [[ $env == 'prod' ]]; then
+                    target_arn="arn:aws:iam::${account_id}:role/GithubUsageConcourseWorkerRole"
+                    source sts-assume-role.sh $target_arn
+                    terraform init -reconfigure -backend-config=../deployments/${account_id}/backend.tfvars
+                    terraform plan -var-file=../deployments/${account_id}/apply.tfvars
+                    terraform apply --auto-approve -var-file=../deployments/${account_id}/apply.tfvars
+                  else
+                    echo "${account_id} is not a production account - Not deploying at this stage"
+                  fi
+                done
+            dir: cyber-security-github-usage-git
+        on_failure:
+          <<: *health_status_notify
+          params:
+            message: "Failed to deploy cyber-security-github-usage to prod"
+            health: unhealthy
+
+      - task: invoke_lambda_in_prod
+        config:
+          <<: *cyber_build_config
+          inputs:
+            - name: cyber-security-terraform-git
+          run:
+            path: /bin/bash
+            args:
+              - -exc
+              - |
+                passed=true
+                monitored_accounts=$(ls service/github_usage/deployments)
+                for account_id in $monitored_accounts; do
+                  env=$(grep ENVIRONMENT service/github_usage/deployments/${account_id}/apply.tfvars | tr '"' ' ' | awk {' print $3 '})
+                  echo "${account_id} is a ${env} environment"
+                  if [[ $env == 'prod' ]]; then
+                    target_arn="arn:aws:iam::${account_id}:role/GithubUsageConcourseWorkerRole"
+                    source sts-assume-role.sh $target_arn
+                    aws lambda invoke --function-name=github_usage_lambda --region=eu-west-2 response.json > status.json
+
+                    jq_type=$(cat response.json | jq -r type)
+                    if [[ $jq_type != 'array' ]]; then
+                      passed=false
+                    fi
+
+                    jq_length=$(cat response.json | jq -r length)
+                    if [[ "$jq_length" != '1' ]]; then
+                      passed=false
+                    fi
+
+                    status_code=$(cat status.json | jq -r .StatusCode)
+                    if [[ "$status_code" != "200" ]]; then
+                      passed=false
+                    fi
+                  else
+                    echo "${account_id} is not a production account - Not invoking at this stage"
+                  fi
+                done
+
+                if [ "$passed" = true ]; then
+                  echo "Passed"
+                else
+                  echo "Failed"
+                  exit 1
+                fi
+            dir: cyber-security-terraform-git
+        on_failure:
+          <<: *health_status_notify
+          params:
+            message: "Failed to invoke usage action in prod"
+            health: unhealthy
+        on_success:
+          <<: *health_status_notify
+          params:
+            message: "Pipeline completed successfully"
+            health: healthy

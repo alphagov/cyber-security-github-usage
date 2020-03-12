@@ -1,6 +1,6 @@
 """ Run process notification offline to report user coverage """
-import os
 import json
+import os
 
 from github_usage import process_message
 
