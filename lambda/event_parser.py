@@ -25,11 +25,17 @@ def parse_messages(event):
     """
     Parse the escaped message body from each of the SQS messages in event.Records
     """
+    use_default = False
     if "Records" in event:
         messages = [get_message_body(record) for record in event["Records"]]
     elif "body" in event:
         messages = [get_message_body(event)]
+        if event["body"] == "":
+            use_default = True
     else:
+        use_default = True
+
+    if use_default:
         default_message = {"action": "usage"}
         messages = [default_message]
     return messages
