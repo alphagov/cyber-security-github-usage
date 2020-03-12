@@ -46,21 +46,14 @@ def test_get_github_org_members(
     token = "abc123"
 
     mocker = args["mocker"]
-    mocker.get(
-        f"https://api.github.com/orgs/{org}/members?page=1",
-        request_headers={"Authorization": f"token {token}"},
-        text=github_members_page_1,
-    )
-    mocker.get(
-        f"https://api.github.com/orgs/{org}/members?page=2",
-        request_headers={"Authorization": f"token {token}"},
-        text=github_members_page_2,
-    )
-    mocker.get(
-        f"https://api.github.com/orgs/{org}/members?page=3",
-        request_headers={"Authorization": f"token {token}"},
-        text=github_members_page_3,
-    )
+    for i, page in enumerate(
+        [github_members_page_1, github_members_page_2, github_members_page_3], start=1
+    ):
+        mocker.get(
+            f"https://api.github.com/orgs/{org}/members?page={i}",
+            request_headers={"Authorization": f"token {token}"},
+            text=page,
+        )
 
     members = get_github_org_members(org, token)
     assert "user-c" in members
@@ -88,21 +81,15 @@ def test_usage(
         token = "abc123"
 
         mocker = args["mocker"]
-        mocker.get(
-            f"https://api.github.com/orgs/{org}/members?page=1",
-            request_headers={"Authorization": f"token {token}"},
-            text=github_members_page_1,
-        )
-        mocker.get(
-            f"https://api.github.com/orgs/{org}/members?page=2",
-            request_headers={"Authorization": f"token {token}"},
-            text=github_members_page_2,
-        )
-        mocker.get(
-            f"https://api.github.com/orgs/{org}/members?page=3",
-            request_headers={"Authorization": f"token {token}"},
-            text=github_members_page_3,
-        )
+        for i, page in enumerate(
+            [github_members_page_1, github_members_page_2, github_members_page_3],
+            start=1,
+        ):
+            mocker.get(
+                f"https://api.github.com/orgs/{org}/members?page={i}",
+                request_headers={"Authorization": f"token {token}"},
+                text=page,
+            )
 
         stats = usage()
         assert stats["removed"] == 2
