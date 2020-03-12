@@ -7,7 +7,16 @@ resources:
     source:
       uri: https://github.com/alphagov/cyber-security-github-usage.git
       branch: eng-220
-      private_key: ((deploy-key))
+
+  - name: cyber-security-terraform-git
+    icon: github-circle
+    type: git
+    source:
+      uri: git@github.com:alphagov/cyber-security-terraform.git
+      branch: master
+      private_key: ((cyber-security-terraform-deploy-key))
+      paths:
+        - service/github_usage/*
 
   - name: health-notification
     type: http-api
@@ -72,71 +81,98 @@ jobs:
           params:
             message: "Cyber Security github_usage lambda tests failed"
             health: unhealthy
-#
-#   - name: build_and_deploy
-#     plan:
-#       - get: cyber-security-github-usage-git
-#         trigger: true
-#         passed:
-#           - lambda_test
-#       - task: alert_controller_zip
-#         config:
-#           <<: *cyber_build_config
-#           inputs:
-#           - name: cyber-security-github-usage-git
-#           outputs:
-#           - name: alert_controller_lambda_package
-#           run:
-#             path: /bin/bash
-#             args:
-#               - -exc
-#               - |
-#                 cd lambda
-#                 make zip
-#                 mv github_usage.zip ../../../github_usage_lambda_package
-#                 echo "Built zip file for lambda distribution"
-#             dir: cyber-security-github-usage-git
-#         on_failure:
-#           <<: *health_status_notify
-#           params:
-#             message: "Failed to build alert_controller lambda zip file"
-#             health: unhealthy
-#
-#       - task: terraform_account_validate
-#         config:
-#           <<: *cyber_build_config
-#           inputs:
-#           - name: cyber-security-github-usage-git
-#           - name: alert_controller_lambda_package
-#           - name: report_netcraft_lambda_package
-#           run:
-#             path: /bin/bash
-#             args:
-#               - -exc
-#               - |
-#                 cd ..
-#                 cp alert_controller_lambda_package/alert_controller.zip cyber-security-github-usage-git/lambda/alert_controller
-#                 cp report_netcraft_lambda_package/report_netcraft.zip cyber-security-github-usage-git/lambda/report_netcraft
-#                 workdir=$(pwd)
-#                 monitored_accounts=$(ls cyber-security-github-usage-git/terraform/deployments)
-#                 cd cyber-security-alert-processor-git
-#                 cd cyber-security-github-usage-git
-#                 cd terraform/deployable
-#                 for account_id in $monitored_accounts; do
-#                   target_arn="arn:aws:iam::${account_id}:role/AlertProcessorConcourseWorkerRole"
-#                   source sts-assume-role.sh $target_arn
-#                   terraform init -reconfigure -backend-config=../deployments/${account_id}/backend.tfvars
-#                   terraform validate
-#                 done
-#                 echo "Terraform valid"
-#             dir: cyber-security-alert-processor-git
-#             dir: cyber-security-github-usage-git
-#         on_failure:
-#           <<: *health_status_notify
-#           params:
-#             message: "Failed to validate alert processor terraform"
-#             health: unhealthy
-#
+
+  - name: build_and_deploy
+    plan:
+      - get: cyber-security-github-usage-git
+        trigger: true
+        passed:
+          - lambda_test
+      - get: cyber-security-terraform-git
+        trigger: false
+      - task: terraform_deploy_keys
+        config:
+          <<: *cyber_build_config
+          outputs:
+          - name: ssh
+          run:
+            path: /bin/bash
+            args:
+              - -exc
+              - |
+                cat > deploy_key <<'EOF'
+                ((cyber-security-terraform-deploy-key))
+                EOF
+                echo "Host github.com" > config
+                echo "  IdentityFile {workdir}/deploy_key" >> config
+                echo "  StrictHostKeyChecking no" >> config
+                chmod 400 deploy_key
+            dir: ssh
+        on_failure:
+          <<: *health_status_notify
+          params:
+            message: "Failed to set SSH config"
+            health: unhealthy
+
+      - task: github_usage_zip
+        config:
+          <<: *cyber_build_config
+          inputs:
+          - name: cyber-security-github-usage-git
+          outputs:
+          - name: lambda_package
+          run:
+            path: /bin/bash
+            args:
+              - -exc
+              - |
+                cd lambda
+                make zip
+                mv github_usage_lambda.zip ../../lambda_package
+                echo "Built zip file for lambda distribution"
+            dir: cyber-security-github-usage-git
+        on_failure:
+          <<: *health_status_notify
+          params:
+            message: "Failed to build github_usage lambda zip file"
+            health: unhealthy
+
+      - task: terraform_account_validate
+        config:
+          <<: *cyber_build_config
+          inputs:
+          - name: cyber-security-github-usage-git
+          - name: cyber-security-terraform-git
+          - name: ssh
+          - name: lambda_package
+          run:
+            path: /bin/bash
+            args:
+              - -exc
+              - |
+                cd ..
+                cp lambda_package/github_usage_lambda.zip cyber-security-github-usage-git/lambda
+                workdir=$(pwd)
+                mkdir /root/.ssh
+                sed 's+{workdir}+'"$workdir"'/ssh+g' ssh/config > /root/.ssh/config
+                ln -fs ${workdir}/cyber-security-terraform-git/service/github_usage/deployments ${workdir}/cyber-security-github-usage-git/terraform
+                monitored_accounts=$(ls cyber-security-github-usage-git/terraform/deployments)
+                cd cyber-security-github-usage-git
+                cd terraform/deployable
+                for account_id in $monitored_accounts; do
+                  target_arn="arn:aws:iam::${account_id}:role/GithubUsageConcourseWorkerRole"
+                  source sts-assume-role.sh $target_arn
+                  terraform init -reconfigure -backend-config=../deployments/${account_id}/backend.tfvars
+                  terraform validate
+                done
+                echo "Terraform valid"
+            dir: cyber-security-github-usage-git
+        on_failure:
+          <<: *health_status_notify
+          params:
+            message: "Failed to validate github usage terraform"
+            health: unhealthy
+
 #       - task: apply_terraform_to_staging
 #         config:
 #           <<: *cyber_build_config
