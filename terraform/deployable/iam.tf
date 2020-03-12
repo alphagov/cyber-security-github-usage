@@ -38,7 +38,7 @@ data "aws_iam_policy_document" "github_usage_policy_document" {
     ]
 
     resources = [
-      "arn:aws:ssm:eu-west-2:103495720024:parameter/alert-processor/tokens/github/*"
+      "arn:aws:ssm:eu-west-2:${data.aws_caller_identity.current.account_id}:parameter/alert-processor/tokens/github/*"
     ]
   }
 }
