@@ -1,4 +1,5 @@
 """ Handle events from pre-commit hook reporting """
+import json
 import os
 
 import boto3
@@ -190,5 +191,5 @@ def usage(message=None):
         "users": [*user_tokens],
         "percent_coverage": f"{coverage:.1f}",
     }
-    LOG.debug(str(stats))
+    LOG.info(json.dumps(stats, default=str))
     return stats

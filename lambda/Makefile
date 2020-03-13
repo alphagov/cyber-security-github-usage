@@ -15,7 +15,7 @@ test: checks
 	pytest -sqx --disable-warnings
 	echo "✔️ Tests passed!"
 
-checks:
+checks: clean
 	echo "⏳ running pipeline..."
 	set -e
 	isort --atomic -yq
