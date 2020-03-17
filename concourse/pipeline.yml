@@ -21,10 +21,10 @@ resources:
   - name: health-notification
     type: http-api
     source:
-      uri: https://((health_host_test))/?alert_type=concourse$&alert_name=health
+      uri: https://((health_host_prod))/?alert_type=concourse$&alert_name=health
       method: POST
       headers:
-        Authorization: "Bearer ((health_token_test))"
+        Authorization: "Bearer ((health_token_prod))"
       json:
         service: "{service}"
         state: "{health}"
