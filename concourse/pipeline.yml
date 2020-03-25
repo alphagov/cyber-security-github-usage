@@ -6,7 +6,7 @@ resources:
     type: git
     source:
       uri: https://github.com/alphagov/cyber-security-github-usage.git
-      branch: master
+      branch: change_exc_to_c
 
   - name: cyber-security-terraform-git
     icon: github-circle
