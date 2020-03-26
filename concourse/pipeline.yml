@@ -69,7 +69,7 @@ jobs:
           run:
             path: /bin/bash
             args:
-              - -exc
+              - -c
               - |
                 cd lambda
                 pip install -r requirements-dev.txt
@@ -98,7 +98,7 @@ jobs:
           run:
             path: /bin/bash
             args:
-              - -exc
+              - -c
               - |
                 cat > deploy_key <<'EOF'
                 ((cyber-security-terraform-deploy-key))
@@ -124,7 +124,7 @@ jobs:
           run:
             path: /bin/bash
             args:
-              - -exc
+              - -c
               - |
                 cd lambda
                 make zip
@@ -148,7 +148,7 @@ jobs:
           run:
             path: /bin/bash
             args:
-              - -exc
+              - -c
               - |
                 cd ..
                 cp lambda_package/github_usage_lambda.zip cyber-security-github-usage-git/lambda
@@ -184,7 +184,7 @@ jobs:
           run:
             path: /bin/bash
             args:
-              - -exc
+              - -c
               - |
                 cd ..
                 cp lambda_package/github_usage_lambda.zip cyber-security-github-usage-git/lambda
@@ -223,7 +223,7 @@ jobs:
           run:
             path: /bin/bash
             args:
-              - -exc
+              - -c
               - |
                 passed=true
                 monitored_accounts=$(ls service/github_usage/deployments)
@@ -278,7 +278,7 @@ jobs:
           run:
             path: /bin/bash
             args:
-              - -exc
+              - -c
               - |
                 cd ..
                 cp lambda_package/github_usage_lambda.zip cyber-security-github-usage-git/lambda
@@ -317,7 +317,7 @@ jobs:
           run:
             path: /bin/bash
             args:
-              - -exc
+              - -c
               - |
                 passed=true
                 monitored_accounts=$(ls service/github_usage/deployments)
