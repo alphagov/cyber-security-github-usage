@@ -19,7 +19,14 @@ variable "LOG_LEVEL" {
   default     = "ERROR"
 }
 
-variable "cron_schedule" {
+variable "usage_cron_schedule" {
   description = "Report usage to splunk on a regular basis"
   type        = string
+  default     = ""
+}
+
+variable "audit_cron_schedule" {
+  description = "Report membership audit to splunk on a regular basis"
+  type        = string
+  default     = ""
 }

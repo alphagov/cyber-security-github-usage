@@ -15,3 +15,7 @@ resource "aws_sns_topic_subscription" "github_usage_sub_sns_subscription" {
   protocol  = "lambda"
   endpoint  = aws_lambda_function.github_usage_lambda.arn
 }
+
+output "sns_arn" {
+  value = data.aws_sns_topic.github_usage_sub.arn
+}

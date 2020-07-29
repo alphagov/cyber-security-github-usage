@@ -15,27 +15,72 @@ resource "aws_lambda_function" "github_usage_lambda" {
       GITHUB_ORG    = var.GITHUB_ORG
       GITHUB_TOKEN  = var.GITHUB_TOKEN
       LOG_LEVEL     = var.LOG_LEVEL
+      SNS_ARN       = data.aws_sns_topic.github_usage_sub.arn
     }
   }
 }
 
-resource "aws_cloudwatch_event_rule" "run_schedule" {
-  name                = "github_usage_run_schedule"
+resource "aws_cloudwatch_event_rule" "usage_run_schedule" {
+  count               = var.usage_cron_schedule == "" ? 1 : 0
+  name                = "github_usage_usage_action_run_schedule"
   description         = "Run on cron schedule"
-  schedule_expression = var.cron_schedule
+  schedule_expression = var.usage_cron_schedule
 }
 
-resource "aws_cloudwatch_event_target" "run_every_x_minutes" {
-  rule      = aws_cloudwatch_event_rule.run_schedule.name
+# Schedule usage update = action:usage
+data "template_file" "usage_event" {
+  template = file("${path.module}/json/lambda_event.json")
+  vars {
+    action = "usage"
+  }
+}
+
+resource "aws_cloudwatch_event_target" "run_usage_every_x_minutes" {
+  count     = var.usage_cron_schedule == "" ? 1 : 0
+  rule      = aws_cloudwatch_event_rule.usage_run_schedule.name
   target_id = aws_lambda_function.github_usage_lambda.function_name
   arn       = aws_lambda_function.github_usage_lambda.arn
+  input     = data.template_file.usage_event.rendered
 }
 
-resource "aws_lambda_permission" "allow_cloudwatch_to_call_check_foo" {
+resource "aws_lambda_permission" "allow_cloudwatch_to_invoke_usage_lambda" {
+  count         = var.usage_cron_schedule == "" ? 1 : 0
   statement_id  = "AllowExecutionFromCloudWatch"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.github_usage_lambda.function_name
   principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.run_schedule.arn
+  source_arn    = aws_cloudwatch_event_rule.usage_run_schedule.arn
+}
+
+# Schedule membership audit = action:audit
+resource "aws_cloudwatch_event_rule" "audit_run_schedule" {
+  count               = var.audit_cron_schedule == "" ? 1 : 0
+  name                = "github_usage_audit_action_run_schedule"
+  description         = "Run on cron schedule"
+  schedule_expression = var.audit_cron_schedule
+}
+
+data "template_file" "audit_event" {
+  template = file("${path.module}/json/lambda_event.json")
+  vars {
+    action = "audit"
+  }
+}
+
+resource "aws_cloudwatch_event_target" "run_audit_every_x_minutes" {
+  count     = var.audit_cron_schedule == "" ? 1 : 0
+  rule      = aws_cloudwatch_event_rule.audit_run_schedule.name
+  target_id = aws_lambda_function.github_usage_lambda.function_name
+  arn       = aws_lambda_function.github_usage_lambda.arn
+  input     = data.template_file.audit_event.rendered
+}
+
+resource "aws_lambda_permission" "allow_cloudwatch_to_invoke_audit_lambda" {
+  count         = var.usage_cron_schedule == "" ? 1 : 0
+  statement_id  = "AllowExecutionFromCloudWatch"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.github_usage_lambda.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.audit_run_schedule.arn
 }
 
