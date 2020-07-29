@@ -83,3 +83,8 @@ def get_sns_event():
     sns_event = {"Records": [{"Sns": {"Message": json.dumps(message)}}]}
 
     return sns_event
+
+
+@pytest.fixture()
+def sns_event():
+    return get_sns_event()

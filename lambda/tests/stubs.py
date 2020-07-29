@@ -96,12 +96,6 @@ def mock_ssm_usage():
     client = boto3.real_client("ssm")
 
     stubber = Stubber(client)
-    get_parameter_response = {"Parameter": {"Value": "abc123"}}
-    stubber.add_response(
-        "get_parameter",
-        get_parameter_response,
-        {"Name": "/github/usage/pat", "WithDecryption": True},
-    )
 
     # mock get_function response
     mock_get_parameters_by_path_page_1 = {
@@ -158,6 +152,32 @@ def mock_ssm_usage():
 
     stubber.add_response(
         "delete_parameter", {}, {"Name": "/alert-processor/tokens/github/user-b"},
+    )
+
+    stubber.activate()
+    # override boto.client to return the mock client
+    boto3.client = lambda service: client
+    return stubber
+
+
+def mock_sns_publish(sns_event, topic_arn, subject, response_id):
+    _keep_it_real()
+    client = boto3.real_client("sns")
+
+    stubber = Stubber(client)
+
+    # mock get_function response
+    mock_sns_publish_response = {"MessageId": response_id}
+
+    stubber.add_response(
+        "publish",
+        mock_sns_publish_response,
+        {
+            "TopicArn": topic_arn,
+            "Message": sns_event,
+            "Subject": subject,
+            "MessageStructure": "json",
+        },
     )
 
     stubber.activate()

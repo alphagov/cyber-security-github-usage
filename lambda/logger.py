@@ -1,13 +1,14 @@
 """ Declare a logger to be used by any module """
-import os
-import sys
 import datetime
 import json
 import logging
+import os
+import sys
 
 
 class JsonFormatter(logging.Formatter):
     """ Handle log invokes with string, dict or json.dumps """
+
     def format(self):
         """ Detect formatting of self message and encode as valid JSON """
         data = {}
@@ -17,7 +18,7 @@ class JsonFormatter(logging.Formatter):
             parsed = json.loads(self.msg)
             if type(parsed) in [dict, list]:
                 data["msg"] = parsed
-        except ValueError:
+        except (TypeError, ValueError):
             pass
 
         try:

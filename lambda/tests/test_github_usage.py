@@ -5,13 +5,8 @@ import pytest
 import requests_mock
 
 import stubs
-from github_usage import (
-    TOKEN_PREFIX,
-    get_github_org_members,
-    get_ssm_params,
-    process_message,
-    usage,
-)
+from github_api import set_github_access_token
+from github_usage import process_message, usage
 
 
 def test_process_message():
@@ -20,45 +15,6 @@ def test_process_message():
     should_succeed = [{"action": "commit"}]
     for message in should_succeed:
         assert process_message(message) is True
-
-
-def test_get_ssm_params():
-    """Test routing get_routing_options function"""
-    stubber = stubs.mock_ssm_get_parameters_by_path()
-
-    with stubber:
-        ssm_params = get_ssm_params(TOKEN_PREFIX)
-        assert ssm_params["user-a"] == "github-token-a"
-        assert ssm_params["user-d"] == "github-token-d"
-
-        stubber.deactivate()
-
-
-@pytest.mark.usefixtures("github_members_page_1")
-@pytest.mark.usefixtures("github_members_page_2")
-@pytest.mark.usefixtures("github_members_page_3")
-@requests_mock.Mocker(kw="mocker")
-def test_get_github_org_members(
-    github_members_page_1, github_members_page_2, github_members_page_3, **args
-):
-    """Test using request mocker."""
-    org = "testorg"
-    token = "abc123"
-
-    mocker = args["mocker"]
-    for i, page in enumerate(
-        [github_members_page_1, github_members_page_2, github_members_page_3], start=1
-    ):
-        mocker.get(
-            f"https://api.github.com/orgs/{org}/members?page={i}",
-            request_headers={"Authorization": f"token {token}"},
-            text=page,
-        )
-
-    members = get_github_org_members(org, token)
-    assert "user-c" in members
-    assert "user-j" in members
-    assert "user-a" not in members
 
 
 @pytest.mark.usefixtures("github_members_page_1")
@@ -75,11 +31,11 @@ def test_usage(
     os.environ["GITHUB_TOKEN"] = token_var
     org = "testorg"
     os.environ["GITHUB_ORG"] = org
+    token = "abc123"
+    set_github_access_token(token)
 
     with stubber:
         """Test using request mocker."""
-        token = "abc123"
-
         mocker = args["mocker"]
         for i, page in enumerate(
             [github_members_page_1, github_members_page_2, github_members_page_3],
