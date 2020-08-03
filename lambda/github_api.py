@@ -1,4 +1,5 @@
 import os
+import time
 
 import requests
 
@@ -28,11 +29,12 @@ def get_github_access_token():
 def get_github_api_paged_data(url: str) -> list:
     token = get_github_access_token()
     page = 1
+    page_size = 100
     page_items = 1
     items = []
     while page_items > 0:
         page_items = 0
-        page_url = f"{url}?page={page}"
+        page_url = f"{url}?page={page}&per_page={page_size}"
         headers = {"authorization": f"token {token}"}
         response = requests.get(page_url, headers=headers).json()
         if isinstance(response, list):
@@ -43,6 +45,7 @@ def get_github_api_paged_data(url: str) -> list:
         else:
             LOG.error(response)
         page += 1
+        time.sleep(4)
 
     return items
 

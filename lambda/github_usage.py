@@ -39,6 +39,7 @@ def process_message(message):
         "log_org_team_repos": audit.log_org_team_repos,
         "log_org_repos": audit.log_org_repos,
         "log_org_repo_contributors": audit.log_org_repo_contributors,
+        "log_org_repo_team_members": audit.log_org_repo_team_members,
     }
     action = message["action"]
     process_action = actions[action]
