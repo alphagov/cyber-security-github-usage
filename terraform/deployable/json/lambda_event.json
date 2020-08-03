@@ -1,3 +1,5 @@
 {
-  "action": "${action}"
+  "body": {
+    "action": "${action}"
+  }
 }

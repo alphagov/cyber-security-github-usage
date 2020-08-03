@@ -77,7 +77,7 @@ resource "aws_cloudwatch_event_target" "run_audit_every_x_minutes" {
 }
 
 resource "aws_lambda_permission" "allow_cloudwatch_to_invoke_audit_lambda" {
-  count         = var.usage_cron_schedule == "" ? 0 : 1
+  count         = var.audit_cron_schedule == "" ? 0 : 1
   statement_id  = "AllowExecutionFromCloudWatch"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.github_usage_lambda.function_name
