@@ -39,6 +39,13 @@ def log_org_membership(message=None):
     if audit_id is not None:
         LOG.info({"action": "Audit organization members", "org": org})
         members = github_api.get_github_org_members(org)
+        event = {
+            "type": "OrganizationMemberCount",
+            "org": org,
+            "count": len(members),
+            "audit_id": audit_id,
+        }
+        LOG.info(event)
         for member in members:
             event = {
                 "type": "OrganizationMember",
@@ -59,6 +66,13 @@ def log_org_teams(message=None):
     if audit_id is not None:
         LOG.info({"action": "Audit organization teams", "org": org})
         teams = github_api.get_github_org_teams(org)
+        event = {
+            "type": "OrganizationTeamCount",
+            "org": org,
+            "count": len(teams),
+            "audit_id": audit_id,
+        }
+        LOG.info(event)
         for team in teams:
             event = {
                 "type": "OrganizationTeam",
@@ -101,6 +115,14 @@ def log_org_team_membership(message=None):
         LOG.info({"action": "Audit team members", "org": org, "team": team_name})
         if team is not None:
             members = github_api.get_github_org_team_members(org, team_name)
+            event = {
+                "type": "OrganizationTeamMemberCount",
+                "org": org,
+                "team": team,
+                "count": len(members),
+                "audit_id": audit_id,
+            }
+            LOG.info(event)
             for member in members:
                 event = {
                     "type": "OrganizationTeamMember",
@@ -166,6 +188,13 @@ def log_org_repos(message=None):
     if audit_id is not None:
         LOG.info({"action": "Audit organization org repos", "org": org})
         repos = github_api.get_github_org_repositories(org)
+        event = {
+            "type": "OrganizationRepoCount",
+            "org": org,
+            "count": len(repos),
+            "audit_id": audit_id,
+        }
+        LOG.info(event)
         for repo in repos:
             event = {
                 "type": "OrganizationRepo",
