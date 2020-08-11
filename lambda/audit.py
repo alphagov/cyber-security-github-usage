@@ -38,12 +38,12 @@ def log_org_membership(message=None):
     if audit_id is not None:
         LOG.info({"action": "Audit organization members", "org": org})
         members = github_api.get_github_org_members(org)
-        event = {
-            "type": "OrganizationMemberCount",
-            "org": org,
-            "count": len(members),
-            "audit_id": audit_id,
-        }
+        event = make_audit_event(
+            type="OrganizationMemberCount",
+            org=org,
+            count=len(members),
+            audit_id=audit_id,
+        )
         LOG.info(event)
         for member in members:
             event = {
@@ -64,22 +64,14 @@ def log_org_teams(message=None):
     if audit_id is not None:
         LOG.info({"action": "Audit organization teams", "org": org})
         teams = github_api.get_github_org_teams(org)
-        event = {
-            "type": "OrganizationTeamCount",
-            "org": org,
-            "count": len(teams),
-            "audit_id": audit_id,
-        }
+        event = make_audit_event(
+            type="OrganizationTeamCount", org=org, count=len(teams), audit_id=audit_id
+        )
         LOG.info(event)
         for team in teams:
-            event = {
-                "type": "OrganizationTeam",
-                "org": org,
-                "member": None,
-                "team": team,
-                "repository": None,
-                "audit_id": audit_id,
-            }
+            event = make_audit_event(
+                type="OrganizationTeam", org=org, team=team, audit_id=audit_id
+            )
             LOG.info(event)
             sns_team_membership = create_sns_message(
                 {
@@ -112,26 +104,31 @@ def log_org_team_membership(message=None):
         LOG.info({"action": "Audit team members", "org": org, "team": team_name})
         if team is not None:
             members = github_api.get_github_org_team_members(org, team_name)
-            event = {
-                "type": "OrganizationTeamMemberCount",
-                "org": org,
-                "team": team,
-                "count": len(members),
-                "audit_id": audit_id,
-            }
+            event = make_audit_event(
+                type="OrganizationTeamMemberCount",
+                org=org,
+                team=team,
+                count=len(members),
+                audit_id=audit_id,
+            )
             LOG.info(event)
             for member in members:
-                event = {
-                    "type": "OrganizationTeamMember",
-                    "org": org,
-                    "member": member,
-                    "team": team,
-                    "repository": None,
-                    "audit_id": audit_id,
-                }
+                event = make_audit_event(
+                    type="OrganizationTeamMember",
+                    org=org,
+                    member=member,
+                    team=team,
+                    audit_id=audit_id,
+                )
                 LOG.info(event)
         else:
-            LOG.error({"error": "Team not specified"})
+            LOG.error(
+                {
+                    "audit_id": audit_id,
+                    "error": "Incomplete audit",
+                    "message": "Team not specified",
+                }
+            )
 
 
 def log_org_team_repos(message=None):
@@ -152,14 +149,13 @@ def log_org_team_repos(message=None):
         if team is not None:
             repos = github_api.get_github_org_team_repositories(org, team_name)
             for repo in repos:
-                event = {
-                    "type": "OrganizationRepoTeam",
-                    "org": org,
-                    "member": None,
-                    "team": team,
-                    "repository": repo,
-                    "audit_id": audit_id,
-                }
+                event = make_audit_event(
+                    type="OrganizationRepoTeam",
+                    org=org,
+                    team=team,
+                    repository=repo,
+                    audit_id=audit_id,
+                )
                 LOG.info(event)
                 sns_repo_team_members = create_sns_message(
                     {
@@ -172,7 +168,13 @@ def log_org_team_repos(message=None):
                 )
                 publish_alert(sns_repo_team_members)
         else:
-            LOG.error({"error": "Team not specified"})
+            LOG.error(
+                {
+                    "audit_id": audit_id,
+                    "error": "Incomplete audit",
+                    "message": "Team not specified",
+                }
+            )
 
 
 def log_org_repos(message=None):
@@ -182,22 +184,14 @@ def log_org_repos(message=None):
     if audit_id is not None:
         LOG.info({"action": "Audit organization org repos", "org": org})
         repos = github_api.get_github_org_repositories(org)
-        event = {
-            "type": "OrganizationRepoCount",
-            "org": org,
-            "count": len(repos),
-            "audit_id": audit_id,
-        }
+        event = make_audit_event(
+            type="OrganizationRepoCount", org=org, count=len(repos), audit_id=audit_id
+        )
         LOG.info(event)
         for repo in repos:
-            event = {
-                "type": "OrganizationRepo",
-                "org": org,
-                "member": None,
-                "team": None,
-                "repository": repo,
-                "audit_id": audit_id,
-            }
+            event = make_audit_event(
+                type="OrganizationRepo", org=org, repository=repo, audit_id=audit_id
+            )
             LOG.info(event)
             sns_repo_contributors = create_sns_message(
                 {
@@ -228,17 +222,22 @@ def log_org_repo_contributors(message=None):
         if repo is not None:
             members = github_api.get_github_org_repo_contributors(org, repo_name)
             for member in members:
-                event = {
-                    "type": "OrganizationRepoContributor",
-                    "org": org,
-                    "member": member,
-                    "team": None,
-                    "repository": repo,
-                    "audit_id": audit_id,
-                }
+                event = make_audit_event(
+                    type="OrganizationRepoContributor",
+                    org=org,
+                    member=member,
+                    repository=repo,
+                    audit_id=audit_id,
+                )
                 LOG.info(event)
         else:
-            LOG.error({"error": "Repo not specified"})
+            LOG.error(
+                {
+                    "audit_id": audit_id,
+                    "error": "Incomplete audit",
+                    "message": "Repo not specified",
+                }
+            )
 
 
 def log_org_repo_team_members(message=None):
@@ -260,17 +259,23 @@ def log_org_repo_team_members(message=None):
         if repo is not None:
             members = github_api.get_github_org_team_members(org, team_name)
             for member in members:
-                event = {
-                    "type": "OrganizationRepoTeamMember",
-                    "org": org,
-                    "member": member,
-                    "team": team,
-                    "repository": repo,
-                    "audit_id": audit_id,
-                }
+                event = make_audit_event(
+                    type="OrganizationRepoTeamMember",
+                    org=org,
+                    member=member,
+                    team=team,
+                    repository=repo,
+                    audit_id=audit_id,
+                )
                 LOG.info(event)
         else:
-            LOG.error({"error": "Repo not specified"})
+            LOG.error(
+                {
+                    "audit_id": audit_id,
+                    "error": "Incomplete audit",
+                    "message": "Repo not specified",
+                }
+            )
 
 
 def create_sns_message(body):
@@ -286,7 +291,7 @@ def create_sns_message(body):
 
         return message
     except TypeError as err:
-        LOG.error({"error": err})
+        LOG.error({"error": "Failed to create SNS payload", "message": err})
 
 
 def publish_alert(message):
@@ -306,4 +311,16 @@ def publish_alert(message):
 
         return sns_response
     except ClientError as err:
-        LOG.error({"error": err})
+        LOG.error({"error": "Failed to publish to SNS", "message": err})
+
+
+def make_audit_event(
+    type=None, org=None, member=None, team=None, repository=None, count=0, audit_id=None
+):
+    """
+    Create an audit event dictionary with a fixed data model
+
+    Converts arguments to a dictionary.
+    The Nones should be present in the dictionary.
+    """
+    return locals()
