@@ -15,20 +15,17 @@ def start(message=None):
     audit_id = str(uuid.uuid4())
     LOG.info({"action": "Starting github audit", "org": org, "audit_id": audit_id})
 
-    sns_org_members = create_sns_message(
-        {"action": "log_org_membership", "org": org, "audit_id": audit_id}
+    send_sns_trigger(
+        action="log_org_membership", org=org, audit_id=audit_id
     )
-    publish_alert(sns_org_members)
 
-    sns_org_repos = create_sns_message(
-        {"action": "log_org_repos", "org": org, "audit_id": audit_id}
+    send_sns_trigger(
+        action="log_org_repos", org=org, audit_id=audit_id
     )
-    publish_alert(sns_org_repos)
 
-    sns_org_teams = create_sns_message(
-        {"action": "log_org_teams", "org": org, "audit_id": audit_id}
+    send_sns_trigger(
+        action="log_org_teams", org=org, audit_id=audit_id
     )
-    publish_alert(sns_org_teams)
 
 
 def log_org_membership(message=None):
@@ -46,14 +43,12 @@ def log_org_membership(message=None):
         )
         LOG.info(event)
         for member in members:
-            event = {
-                "type": "OrganizationMember",
-                "org": org,
-                "member": member,
-                "team": None,
-                "repository": None,
-                "audit_id": audit_id,
-            }
+            event = make_audit_event(
+                type="OrganizationMember",
+                org=org,
+                member=member,
+                audit_id=audit_id
+            )
             LOG.info(event)
 
 
@@ -73,25 +68,19 @@ def log_org_teams(message=None):
                 type="OrganizationTeam", org=org, team=team, audit_id=audit_id
             )
             LOG.info(event)
-            sns_team_membership = create_sns_message(
-                {
-                    "action": "log_org_team_membership",
-                    "org": org,
-                    "team": team,
-                    "audit_id": audit_id,
-                }
+            send_sns_trigger(
+                action="log_org_team_membership",
+                org=org,
+                team=team,
+                audit_id=audit_id,
             )
-            publish_alert(sns_team_membership)
 
-            sns_team_repos = create_sns_message(
-                {
-                    "action": "log_org_team_repos",
-                    "org": org,
-                    "team": team,
-                    "audit_id": audit_id,
-                }
+            send_sns_trigger(
+                action="log_org_team_repos",
+                org=org,
+                team=team,
+                audit_id=audit_id
             )
-            publish_alert(sns_team_repos)
 
 
 def log_org_team_membership(message=None):
@@ -157,16 +146,13 @@ def log_org_team_repos(message=None):
                     audit_id=audit_id,
                 )
                 LOG.info(event)
-                sns_repo_team_members = create_sns_message(
-                    {
-                        "action": "log_org_repo_team_members",
-                        "org": org,
-                        "repo": repo,
-                        "team": team,
-                        "audit_id": audit_id,
-                    }
+                send_sns_trigger(
+                    action="log_org_repo_team_members",
+                    org=org,
+                    repo=repo,
+                    team=team,
+                    audit_id=audit_id
                 )
-                publish_alert(sns_repo_team_members)
         else:
             LOG.error(
                 {
@@ -193,15 +179,12 @@ def log_org_repos(message=None):
                 type="OrganizationRepo", org=org, repository=repo, audit_id=audit_id
             )
             LOG.info(event)
-            sns_repo_contributors = create_sns_message(
-                {
-                    "action": "log_org_repo_contributors",
-                    "org": org,
-                    "repo": repo,
-                    "audit_id": audit_id,
-                }
+            send_sns_trigger(
+                action="log_org_repo_contributors",
+                org=org,
+                repo=repo,
+                audit_id=audit_id
             )
-            publish_alert(sns_repo_contributors)
 
 
 def log_org_repo_contributors(message=None):
@@ -324,3 +307,14 @@ def make_audit_event(
     The Nones should be present in the dictionary.
     """
     return locals()
+
+
+def send_sns_trigger(
+    action=None, org=None, repo=None, team=None, audit_id=None
+):
+    """
+    Create the SNS payload to trigger the next lambda invovation
+    """
+    event = locals()
+    payload = create_sns_message(event)
+    publish_alert(payload)
