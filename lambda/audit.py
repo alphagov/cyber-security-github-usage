@@ -29,7 +29,6 @@ def start(message=None):
         {"action": "log_org_teams", "org": org, "audit_id": audit_id}
     )
     publish_alert(sns_org_teams)
-    return True
 
 
 def log_org_membership(message=None):
@@ -56,7 +55,6 @@ def log_org_membership(message=None):
                 "audit_id": audit_id,
             }
             LOG.info(event)
-    return True
 
 
 def log_org_teams(message=None):
@@ -102,7 +100,6 @@ def log_org_teams(message=None):
                 }
             )
             publish_alert(sns_team_repos)
-    return True
 
 
 def log_org_team_membership(message=None):
@@ -135,8 +132,6 @@ def log_org_team_membership(message=None):
                 LOG.info(event)
         else:
             LOG.error({"error": "Team not specified"})
-
-    return True
 
 
 def log_org_team_repos(message=None):
@@ -178,7 +173,6 @@ def log_org_team_repos(message=None):
                 publish_alert(sns_repo_team_members)
         else:
             LOG.error({"error": "Team not specified"})
-    return True
 
 
 def log_org_repos(message=None):
@@ -215,8 +209,6 @@ def log_org_repos(message=None):
             )
             publish_alert(sns_repo_contributors)
 
-    return True
-
 
 def log_org_repo_contributors(message=None):
     """ Audit github organization repository contributors """
@@ -247,7 +239,6 @@ def log_org_repo_contributors(message=None):
                 LOG.info(event)
         else:
             LOG.error({"error": "Repo not specified"})
-    return True
 
 
 def log_org_repo_team_members(message=None):
@@ -280,7 +271,6 @@ def log_org_repo_team_members(message=None):
                 LOG.info(event)
         else:
             LOG.error({"error": "Repo not specified"})
-    return True
 
 
 def create_sns_message(body):
