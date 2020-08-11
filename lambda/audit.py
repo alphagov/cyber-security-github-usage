@@ -111,12 +111,9 @@ def log_org_team_membership(message=None):
                 )
                 LOG.info(event)
         else:
-            LOG.error(
-                {
-                    "audit_id": audit_id,
-                    "error": "Incomplete audit",
-                    "message": "Team not specified",
-                }
+            log_audit_incomplete_error(
+                audit_id=audit_id,
+                message="Team not specified"
             )
 
 
@@ -154,12 +151,9 @@ def log_org_team_repos(message=None):
                     audit_id=audit_id
                 )
         else:
-            LOG.error(
-                {
-                    "audit_id": audit_id,
-                    "error": "Incomplete audit",
-                    "message": "Team not specified",
-                }
+            log_audit_incomplete_error(
+                audit_id=audit_id,
+                message="Team not specified"
             )
 
 
@@ -214,12 +208,9 @@ def log_org_repo_contributors(message=None):
                 )
                 LOG.info(event)
         else:
-            LOG.error(
-                {
-                    "audit_id": audit_id,
-                    "error": "Incomplete audit",
-                    "message": "Repo not specified",
-                }
+            log_audit_incomplete_error(
+                audit_id=audit_id,
+                message="Repo not specified"
             )
 
 
@@ -252,12 +243,9 @@ def log_org_repo_team_members(message=None):
                 )
                 LOG.info(event)
         else:
-            LOG.error(
-                {
-                    "audit_id": audit_id,
-                    "error": "Incomplete audit",
-                    "message": "Repo not specified",
-                }
+            log_audit_incomplete_error(
+                audit_id=audit_id,
+                message="Repo not specified"
             )
 
 
@@ -289,12 +277,13 @@ def publish_alert(message):
             Subject=subject,
             MessageStructure="json",
         )
-        LOG.debug("SNS Response: %s", sns_response)
-        LOG.info("Alert published to SNS")
+        LOG.debug("SNS Resppublishonse: %s", sns_response)
+        LOG.info("Alert ed to SNS")
 
         return sns_response
     except ClientError as err:
         LOG.error({"error": "Failed to publish to SNS", "message": err})
+        return False
 
 
 def make_audit_event(
@@ -317,4 +306,19 @@ def send_sns_trigger(
     """
     event = locals()
     payload = create_sns_message(event)
-    publish_alert(payload)
+    response= publish_alert(payload)
+    if not response:
+        log_audit_incomplete_error(
+            audit_id=audit_id,
+            message="Failed to publish to SNS"
+        )
+
+
+def log_audit_incomplete_error(audit_id, message):
+    LOG.error(
+        {
+            "audit_id": audit_id,
+            "error": "Incomplete audit",
+            "message": message,
+        }
+    )
