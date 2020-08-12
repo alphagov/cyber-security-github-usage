@@ -15,17 +15,11 @@ def start(message=None):
     audit_id = str(uuid.uuid4())
     LOG.info({"action": "Starting github audit", "org": org, "audit_id": audit_id})
 
-    send_sns_trigger(
-        action="log_org_membership", org=org, audit_id=audit_id
-    )
+    send_sns_trigger(action="log_org_membership", org=org, audit_id=audit_id)
 
-    send_sns_trigger(
-        action="log_org_repos", org=org, audit_id=audit_id
-    )
+    send_sns_trigger(action="log_org_repos", org=org, audit_id=audit_id)
 
-    send_sns_trigger(
-        action="log_org_teams", org=org, audit_id=audit_id
-    )
+    send_sns_trigger(action="log_org_teams", org=org, audit_id=audit_id)
 
 
 def log_org_membership(message=None):
@@ -44,10 +38,7 @@ def log_org_membership(message=None):
         LOG.info(event)
         for member in members:
             event = make_audit_event(
-                type="OrganizationMember",
-                org=org,
-                member=member,
-                audit_id=audit_id
+                type="OrganizationMember", org=org, member=member, audit_id=audit_id
             )
             LOG.info(event)
 
@@ -69,17 +60,11 @@ def log_org_teams(message=None):
             )
             LOG.info(event)
             send_sns_trigger(
-                action="log_org_team_membership",
-                org=org,
-                team=team,
-                audit_id=audit_id,
+                action="log_org_team_membership", org=org, team=team, audit_id=audit_id,
             )
 
             send_sns_trigger(
-                action="log_org_team_repos",
-                org=org,
-                team=team,
-                audit_id=audit_id
+                action="log_org_team_repos", org=org, team=team, audit_id=audit_id
             )
 
 
@@ -111,10 +96,7 @@ def log_org_team_membership(message=None):
                 )
                 LOG.info(event)
         else:
-            log_audit_incomplete_error(
-                audit_id=audit_id,
-                message="Team not specified"
-            )
+            raise IncompleteAuditError(audit_id=audit_id, message="Team not specified")
 
 
 def log_org_team_repos(message=None):
@@ -148,13 +130,10 @@ def log_org_team_repos(message=None):
                     org=org,
                     repo=repo,
                     team=team,
-                    audit_id=audit_id
+                    audit_id=audit_id,
                 )
         else:
-            log_audit_incomplete_error(
-                audit_id=audit_id,
-                message="Team not specified"
-            )
+            raise IncompleteAuditError(audit_id=audit_id, message="Team not specified")
 
 
 def log_org_repos(message=None):
@@ -177,7 +156,7 @@ def log_org_repos(message=None):
                 action="log_org_repo_contributors",
                 org=org,
                 repo=repo,
-                audit_id=audit_id
+                audit_id=audit_id,
             )
 
 
@@ -208,10 +187,7 @@ def log_org_repo_contributors(message=None):
                 )
                 LOG.info(event)
         else:
-            log_audit_incomplete_error(
-                audit_id=audit_id,
-                message="Repo not specified"
-            )
+            raise IncompleteAuditError(audit_id=audit_id, message="Repo not specified")
 
 
 def log_org_repo_team_members(message=None):
@@ -243,13 +219,10 @@ def log_org_repo_team_members(message=None):
                 )
                 LOG.info(event)
         else:
-            log_audit_incomplete_error(
-                audit_id=audit_id,
-                message="Repo not specified"
-            )
+            raise IncompleteAuditError(audit_id=audit_id, message="Repo not specified")
 
 
-def create_sns_message(body):
+def create_sns_message(audit_id, body):
     """ Create the message to publish to SNS """
     try:
         payload = json.dumps(body)
@@ -262,10 +235,10 @@ def create_sns_message(body):
 
         return message
     except TypeError as err:
-        LOG.error({"error": "Failed to create SNS payload", "message": err})
+        raise IncompleteAuditError(audit_id=audit_id, message=err)
 
 
-def publish_alert(message):
+def publish_alert(audit_id, message):
     """ Publish alert message to SNS """
     try:
         topic_arn = os.environ.get("SNS_ARN")
@@ -277,13 +250,13 @@ def publish_alert(message):
             Subject=subject,
             MessageStructure="json",
         )
-        LOG.debug("SNS Resppublishonse: %s", sns_response)
+        LOG.debug("SNS Response: %s", sns_response)
         LOG.info("Alert ed to SNS")
 
         return sns_response
     except ClientError as err:
-        LOG.error({"error": "Failed to publish to SNS", "message": err})
-        return False
+        raise IncompleteAuditError(audit_id=audit_id, message=err)
+        return None
 
 
 def make_audit_event(
@@ -298,27 +271,24 @@ def make_audit_event(
     return locals()
 
 
-def send_sns_trigger(
-    action=None, org=None, repo=None, team=None, audit_id=None
-):
+def send_sns_trigger(action=None, org=None, repo=None, team=None, audit_id=None):
     """
     Create the SNS payload to trigger the next lambda invovation
     """
     event = locals()
-    payload = create_sns_message(event)
-    response= publish_alert(payload)
-    if not response:
-        log_audit_incomplete_error(
-            audit_id=audit_id,
-            message="Failed to publish to SNS"
+    payload = create_sns_message(audit_id, event)
+    response = publish_alert(audit_id, payload)
+
+
+class IncompleteAuditError(Exception):
+    """
+    Create a wrapper to log an
+    """
+
+    def __init__(self, audit_id, message="Incomplete audit error"):
+        self.audit_id = audit_id
+        self.message = message
+        super().__init__(self.message)
+        LOG.error(
+            {"audit_id": audit_id, "error": "Incomplete audit", "message": message}
         )
-
-
-def log_audit_incomplete_error(audit_id, message):
-    LOG.error(
-        {
-            "audit_id": audit_id,
-            "error": "Incomplete audit",
-            "message": message,
-        }
-    )
