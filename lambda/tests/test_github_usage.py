@@ -47,7 +47,7 @@ def test_usage(
                 text=page,
             )
 
-        stats = usage()
+        stats = usage({"action": "usage"})
         assert stats["removed"] == 2
         assert stats["members"] == 8
         assert stats["registered"] == 2

@@ -101,16 +101,18 @@ def log_org_team_membership(message):
                 )
                 LOG.info(event)
         else:
-            raise IncompleteAuditError(audit_id=audit_id, message="Team not specified")
+            raise IncompleteAuditError(
+                audit_id=audit_id, message="Team not specified", source=message
+            )
 
 
 def log_org_team_repos(message):
     """ Audit github organization repo team access """
     org = os.environ.get("GITHUB_ORG")
-    team = message.get("team", None)
-    team_name = team["slug"]
+    team = message.get("team")
     audit_id = message.get("audit_id")
-    if audit_id is not None:
+    if all([team, audit_id]):
+        team_name = team["slug"]
         LOG.info(
             {
                 "action": "Audit organization team repos",
@@ -138,7 +140,9 @@ def log_org_team_repos(message):
                     audit_id=audit_id,
                 )
         else:
-            raise IncompleteAuditError(audit_id=audit_id, message="Team not specified")
+            raise IncompleteAuditError(
+                audit_id=audit_id, message="Missing parameter", source=message
+            )
 
 
 def log_org_repos(message):
@@ -192,7 +196,9 @@ def log_org_repo_contributors(message):
                 )
                 LOG.info(event)
         else:
-            raise IncompleteAuditError(audit_id=audit_id, message="Repo not specified")
+            raise IncompleteAuditError(
+                audit_id=audit_id, message="Repo not specified", source=message
+            )
 
 
 def log_org_repo_team_members(message):
@@ -224,7 +230,9 @@ def log_org_repo_team_members(message):
                 )
                 LOG.info(event)
         else:
-            raise IncompleteAuditError(audit_id=audit_id, message="Repo not specified")
+            raise IncompleteAuditError(
+                audit_id=audit_id, message="Repo not specified", source=message
+            )
 
 
 def create_sns_message(audit_id, body):
@@ -240,7 +248,7 @@ def create_sns_message(audit_id, body):
 
         return message
     except TypeError as err:
-        raise IncompleteAuditError(audit_id=audit_id, message=err)
+        raise IncompleteAuditError(audit_id=audit_id, message=err, source=body)
 
 
 def publish_alert(audit_id, message):
@@ -260,7 +268,7 @@ def publish_alert(audit_id, message):
 
         return sns_response
     except ClientError as err:
-        raise IncompleteAuditError(audit_id=audit_id, message=err)
+        raise IncompleteAuditError(audit_id=audit_id, message=err, source=message)
         return None
 
 
@@ -290,10 +298,16 @@ class IncompleteAuditError(Exception):
     Create a wrapper to log an
     """
 
-    def __init__(self, audit_id, message="Incomplete audit error"):
+    def __init__(self, audit_id, message="Incomplete audit error", source=None):
         self.audit_id = audit_id
         self.message = message
+        self.source = source
         super().__init__(self.message)
         LOG.error(
-            {"audit_id": audit_id, "error": "Incomplete audit", "message": message}
+            {
+                "audit_id": audit_id,
+                "error": "Incomplete audit",
+                "message": message,
+                "source": source,
+            }
         )
