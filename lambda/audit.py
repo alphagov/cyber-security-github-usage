@@ -9,8 +9,13 @@ import github_api
 from logger import LOG
 
 
-def start(message=None):
-    """ Start an audit of github membership """
+def start(message):
+    """
+    Start an audit of github membership
+
+    The message argument is not used but is included as it's a
+    passthru from the lambda invoke.
+    """
     org = os.environ.get("GITHUB_ORG")
     audit_id = str(uuid.uuid4())
     LOG.info({"action": "Starting github audit", "org": org, "audit_id": audit_id})
@@ -22,7 +27,7 @@ def start(message=None):
     send_sns_trigger(action="log_org_teams", org=org, audit_id=audit_id)
 
 
-def log_org_membership(message=None):
+def log_org_membership(message):
     """ Audit github organization membership """
     org = os.environ.get("GITHUB_ORG")
     audit_id = message.get("audit_id")
@@ -43,7 +48,7 @@ def log_org_membership(message=None):
             LOG.info(event)
 
 
-def log_org_teams(message=None):
+def log_org_teams(message):
     """ Audit github organization teams """
     org = os.environ.get("GITHUB_ORG")
     audit_id = message.get("audit_id")
@@ -68,7 +73,7 @@ def log_org_teams(message=None):
             )
 
 
-def log_org_team_membership(message=None):
+def log_org_team_membership(message):
     """ Audit github organization team membership """
     org = os.environ.get("GITHUB_ORG")
     team = message.get("team", None)
@@ -99,7 +104,7 @@ def log_org_team_membership(message=None):
             raise IncompleteAuditError(audit_id=audit_id, message="Team not specified")
 
 
-def log_org_team_repos(message=None):
+def log_org_team_repos(message):
     """ Audit github organization repo team access """
     org = os.environ.get("GITHUB_ORG")
     team = message.get("team", None)
@@ -136,7 +141,7 @@ def log_org_team_repos(message=None):
             raise IncompleteAuditError(audit_id=audit_id, message="Team not specified")
 
 
-def log_org_repos(message=None):
+def log_org_repos(message):
     """ Audit github organization repositories """
     org = os.environ.get("GITHUB_ORG")
     audit_id = message.get("audit_id")
@@ -160,7 +165,7 @@ def log_org_repos(message=None):
             )
 
 
-def log_org_repo_contributors(message=None):
+def log_org_repo_contributors(message):
     """ Audit github organization repository contributors """
     org = os.environ.get("GITHUB_ORG")
     repo = message.get("repo", None)
@@ -190,7 +195,7 @@ def log_org_repo_contributors(message=None):
             raise IncompleteAuditError(audit_id=audit_id, message="Repo not specified")
 
 
-def log_org_repo_team_members(message=None):
+def log_org_repo_team_members(message):
     """ Audit github organization repository team members """
     org = os.environ.get("GITHUB_ORG")
     repo = message.get("repo", None)

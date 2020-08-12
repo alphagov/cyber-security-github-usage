@@ -63,7 +63,7 @@ def register(notification):
     return param_set
 
 
-def commit(message=None):
+def commit(message):
     """
     Record a commit event to splunk.
 
@@ -72,7 +72,7 @@ def commit(message=None):
     return True
 
 
-def usage(message=None):
+def usage(message):
     """
     Compare registered users to org membership.
     """
