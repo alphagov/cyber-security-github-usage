@@ -2,8 +2,8 @@
 import os
 
 import pytest
-import requests_mock
 
+import requests_mock
 import stubs
 from github_api import set_github_access_token
 from github_usage import process_message, usage

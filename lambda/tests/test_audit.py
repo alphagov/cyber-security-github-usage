@@ -41,16 +41,18 @@ def test_make_audit_event():
     test_event = {"type": "Test", "org": "alphagov", "count": 12}
 
     event = audit.make_audit_event(type=test_event["type"])
-    assert event.get("type") == test_event["type"]
+    assert event.type == test_event["type"]
     # Check the org key is present but None
-    assert event.get("org", "default") is None
+    assert event.org is None
+
     event = audit.make_audit_event(type=test_event["type"], org=test_event["org"])
-    assert event.get("type") == test_event["type"]
-    assert event.get("org") == test_event["org"]
+    assert event.type == test_event["type"]
+    assert event.org == test_event["org"]
     # Check the repository key is present but None
-    assert event.get("repository", "default") is None
+    assert event.repository is None
+
     event = audit.make_audit_event(
         type=test_event["type"], org=test_event["org"], count=test_event["count"]
     )
-    assert event.get("count") == 12
-    assert event.get("member", "default") is None
+    assert event.count == 12
+    assert event.member is None

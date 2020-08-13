@@ -21,14 +21,26 @@ checks: clean
 	isort --atomic -yq
 	black -q .
 	flake8 . --max-line-length=91
-	#mypy --pretty .
+	mypy --warn-unused-config \
+             --disallow-any-generics \
+             --disallow-subclassing-any \
+             --disallow-untyped-calls \
+             --disallow-untyped-defs \
+             --disallow-incomplete-defs \
+             --check-untyped-defs \
+             --no-implicit-optional \
+             --warn-redundant-casts \
+             --warn-unused-ignores \
+             --warn-return-any \
+             --no-implicit-reexport \
+             --strict-equality .
 	echo "✔️ Checks pipeline passed!"
 
 install:
 	set -e
 	echo "⏳ installing..."
 	pip -q install black flake8 mypy watchdog pyyaml argh pytest isort
-	#mypy_boto3 -q && echo  "✔️ mypy_boto3 stubs installed!"!! || true # ignored if not installed
+	mypy_boto3 -q && echo  "✔️ mypy_boto3 stubs installed!"!! || true # ignored if not installed
 	pip install -r requirements-dev.txt
 	echo "✔️ Pip dependencies installed!"
 
