@@ -1,7 +1,20 @@
 # cyber-security-github-usage
 Lambda to report on github usage stats from pre-commit hook invocations
 
-## usage 
+The lambda can be invoked with different 
+actions (declared in the payload). 
+
+Most of the actions are internal secondary 
+actions invoked by the audit action via SNS. 
+There are 2 primary actions: 
+
+1. usage 
+2. audit 
+
+These are triggered by cron lambda 
+triggers defined in the terraform. 
+
+## action: usage 
 
 When someone runs the install script for detect secrets:
 1. They authenticate with Github
@@ -21,7 +34,7 @@ So for detect secrets we'd have 3 metrics:
 2. % of (active) repos with a .secrets.baseline
 3. % of commits protected by pre-commit
 
-## audit
+## action: audit
 
 The aim if the audit is to capture the membership and access of 
 github accounts to a github organisation. It looks at membership
