@@ -1,16 +1,19 @@
+from typing import Dict, Optional
+
 import boto3
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError  # type: ignore
 
 from logger import LOG
+from mypy_boto3_ssm import SSMClient
 
 
-def get_ssm_param(param: str) -> str:
+def get_ssm_param(param: str) -> Optional[str]:
     """ Get parameter by path and return value """
     try:
-        client = boto3.client("ssm")
+        client: SSMClient = boto3.client("ssm")  # type: ignore
         response = client.get_parameter(Name=param, WithDecryption=True)
         if "Parameter" in response:
-            value = response["Parameter"]["Value"]
+            value: Optional[str] = response["Parameter"]["Value"]
         else:
             value = None
     except (ClientError, KeyError) as err:
@@ -19,18 +22,23 @@ def get_ssm_param(param: str) -> str:
     return value
 
 
-def get_ssm_params(path: str) -> dict:
+def get_ssm_params(path: str) -> Dict[str, str]:
     """ Get parameter by path and return value """
     try:
         has_next_page = True
         next_token = None
         params = {}
         while has_next_page:
-            client = boto3.client("ssm")
-            request = {"Path": path, "Recursive": True, "WithDecryption": True}
+            client: SSMClient = boto3.client("ssm")  # type: ignore
+
             if next_token:
-                request["NextToken"] = next_token
-            response = client.get_parameters_by_path(**request)
+                response = client.get_parameters_by_path(
+                    Path=path, Recursive=True, WithDecryption=True, NextToken=next_token
+                )
+            else:
+                response = client.get_parameters_by_path(
+                    Path=path, Recursive=True, WithDecryption=True
+                )
 
             # Iterate parameters in response and append to dictionary
             for param in response["Parameters"]:
@@ -46,14 +54,14 @@ def get_ssm_params(path: str) -> dict:
 
     except ClientError as err:
         LOG.error("Failed to get SSM params on path: %s: %s", path, err)
-        params = []
+        params = {}
     return params
 
 
 def set_ssm_param(param: str, value: str) -> bool:
     """ Write param to SSM and return success status """
     try:
-        client = boto3.client("ssm")
+        client = boto3.client("ssm")  # type: ignore
         response = client.put_parameter(
             Name=param, Value=value, Type="SecureString", Overwrite=True
         )
@@ -67,10 +75,10 @@ def set_ssm_param(param: str, value: str) -> bool:
 def delete_ssm_param(param: str) -> bool:
     """ Delete SSM parameter and return status """
     try:
-        client = boto3.client("ssm")
+        client = boto3.client("ssm")  # type: ignore
         response = client.delete_parameter(Name=param)
         #  delete parameter returns an empty dict
-        success = response == {}
+        success: bool = response == {}
     except ClientError as err:
         LOG.error("Failed to set SSM param: %s: %s", param, err)
         success = False

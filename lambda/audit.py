@@ -1,15 +1,18 @@
 import json
 import os
 import uuid
+from dataclasses import dataclass
+from typing import Any, Dict, Optional, Union
 
 import boto3
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError  # type: ignore
 
 import github_api
 from logger import LOG
+from mypy_boto3_sns import SNSClient
 
 
-def start(message):
+def start(_message: Dict[str, Any]) -> None:
     """
     Start an audit of github membership
 
@@ -27,9 +30,9 @@ def start(message):
     send_sns_trigger(action="log_org_teams", org=org, audit_id=audit_id)
 
 
-def log_org_membership(message):
+def log_org_membership(message: Dict[str, Any]) -> None:
     """ Audit github organization membership """
-    org = os.environ.get("GITHUB_ORG")
+    org = os.environ["GITHUB_ORG"]
     audit_id = message.get("audit_id")
     if audit_id is not None:
         LOG.info({"action": "Audit organization members", "org": org})
@@ -48,9 +51,9 @@ def log_org_membership(message):
             LOG.info(event)
 
 
-def log_org_teams(message):
+def log_org_teams(message: Dict[str, Any]) -> None:
     """ Audit github organization teams """
-    org = os.environ.get("GITHUB_ORG")
+    org = os.environ["GITHUB_ORG"]
     audit_id = message.get("audit_id")
     if audit_id is not None:
         LOG.info({"action": "Audit organization teams", "org": org})
@@ -73,15 +76,18 @@ def log_org_teams(message):
             )
 
 
-def log_org_team_membership(message):
+def log_org_team_membership(message: Dict[str, Any]) -> None:
     """ Audit github organization team membership """
-    org = os.environ.get("GITHUB_ORG")
-    team = message.get("team", None)
-    team_name = team["slug"]
+    org = os.environ["GITHUB_ORG"]
+
+    team = message["team"]
+
+    team_name: Optional[str] = team.get("slug")
+
     audit_id = message.get("audit_id")
-    if audit_id is not None:
+    if audit_id:
         LOG.info({"action": "Audit team members", "org": org, "team": team_name})
-        if team is not None:
+        if team and team_name:
             members = github_api.get_github_org_team_members(org, team_name)
             event = make_audit_event(
                 type="OrganizationTeamMemberCount",
@@ -102,17 +108,20 @@ def log_org_team_membership(message):
                 LOG.info(event)
         else:
             raise IncompleteAuditError(
-                audit_id=audit_id, message="Team not specified", source=message
+                audit_id=audit_id, source=message, message="Team not specified",
             )
 
 
-def log_org_team_repos(message):
+def log_org_team_repos(message: Dict[str, Any]) -> None:
     """ Audit github organization repo team access """
-    org = os.environ.get("GITHUB_ORG")
-    team = message.get("team")
+    org = os.environ["GITHUB_ORG"]
+
+    team = message["team"]
+
     audit_id = message.get("audit_id")
-    if all([team, audit_id]):
+    if team and audit_id:
         team_name = team["slug"]
+
         LOG.info(
             {
                 "action": "Audit organization team repos",
@@ -121,7 +130,7 @@ def log_org_team_repos(message):
                 "audit_id": audit_id,
             }
         )
-        if team is not None:
+        if team:
             repos = github_api.get_github_org_team_repositories(org, team_name)
             for repo in repos:
                 event = make_audit_event(
@@ -141,15 +150,15 @@ def log_org_team_repos(message):
                 )
         else:
             raise IncompleteAuditError(
-                audit_id=audit_id, message="Missing parameter", source=message
+                audit_id=audit_id, source=message, message="Missing parameter",
             )
 
 
-def log_org_repos(message):
+def log_org_repos(message: Dict[str, Union[str, Dict[str, str]]]) -> None:
     """ Audit github organization repositories """
-    org = os.environ.get("GITHUB_ORG")
+    org = os.environ["GITHUB_ORG"]
     audit_id = message.get("audit_id")
-    if audit_id is not None:
+    if isinstance(audit_id, str):
         LOG.info({"action": "Audit organization org repos", "org": org})
         repos = github_api.get_github_org_repositories(org)
         event = make_audit_event(
@@ -169,12 +178,12 @@ def log_org_repos(message):
             )
 
 
-def log_org_repo_contributors(message):
+def log_org_repo_contributors(message: Dict[str, Any]) -> None:
     """ Audit github organization repository contributors """
-    org = os.environ.get("GITHUB_ORG")
+    org = os.environ["GITHUB_ORG"]
     repo = message.get("repo", None)
     audit_id = message.get("audit_id")
-    if audit_id is not None:
+    if audit_id:
         LOG.info(
             {
                 "action": "Audit organization org repo contributors",
@@ -183,8 +192,9 @@ def log_org_repo_contributors(message):
                 "audit_id": audit_id,
             }
         )
-        repo_name = repo["name"]
-        if repo is not None:
+
+        if repo:
+            repo_name = repo["name"]
             members = github_api.get_github_org_repo_contributors(org, repo_name)
             for member in members:
                 event = make_audit_event(
@@ -197,17 +207,25 @@ def log_org_repo_contributors(message):
                 LOG.info(event)
         else:
             raise IncompleteAuditError(
-                audit_id=audit_id, message="Repo not specified", source=message
+                audit_id=audit_id, source=message, message="Repo not specified"
             )
 
 
-def log_org_repo_team_members(message):
+def log_org_repo_team_members(message: Dict[str, Any]) -> None:
     """ Audit github organization repository team members """
-    org = os.environ.get("GITHUB_ORG")
-    repo = message.get("repo", None)
-    team = message.get("team", None)
+    org = os.environ["GITHUB_ORG"]
+    repo = message.get("repo")
+
+    team = message.get("team")
+
+    if isinstance(team, dict):
+        team_name: Optional[str] = team.get("slug")
+    else:
+        team_name = None
+
     audit_id = message.get("audit_id")
-    if audit_id is not None:
+
+    if audit_id and team_name:
         LOG.info(
             {
                 "action": "Audit organization org repo contributors",
@@ -216,8 +234,8 @@ def log_org_repo_team_members(message):
                 "audit_id": audit_id,
             }
         )
-        team_name = team["slug"]
-        if repo is not None:
+
+        if repo and team:
             members = github_api.get_github_org_team_members(org, team_name)
             for member in members:
                 event = make_audit_event(
@@ -235,7 +253,7 @@ def log_org_repo_team_members(message):
             )
 
 
-def create_sns_message(audit_id, body):
+def create_sns_message(audit_id: str, body: Dict[str, Any]) -> str:
     """ Create the message to publish to SNS """
     try:
         payload = json.dumps(body)
@@ -251,12 +269,12 @@ def create_sns_message(audit_id, body):
         raise IncompleteAuditError(audit_id=audit_id, message=err, source=body)
 
 
-def publish_alert(audit_id, message):
+def publish_alert(audit_id: str, message: str) -> Any:
     """ Publish alert message to SNS """
     try:
-        topic_arn = os.environ.get("SNS_ARN")
+        topic_arn = os.environ["SNS_ARN"]
         subject = "GitHub organization access audit"
-        sns = boto3.client("sns")
+        sns: SNSClient = boto3.client("sns")  # type: ignore
         sns_response = sns.publish(
             TopicArn=topic_arn,
             Message=message,
@@ -268,23 +286,46 @@ def publish_alert(audit_id, message):
 
         return sns_response
     except ClientError as err:
-        raise IncompleteAuditError(audit_id=audit_id, message=err, source=message)
+        raise IncompleteAuditError(audit_id=audit_id, source=message, message=err)
         return None
 
 
+@dataclass
+class AuditEvent:
+    type: Optional[str]
+    org: Optional[str]
+    member: Optional[Dict[str, Any]]
+    team: Optional[Dict[str, Any]]
+    repository: Optional[Dict[str, Any]]
+    count: int
+    audit_id: Optional[str]
+
+
 def make_audit_event(
-    type=None, org=None, member=None, team=None, repository=None, count=0, audit_id=None
-):
+    type: Optional[str] = None,
+    org: Optional[str] = None,
+    member: Optional[Dict[str, Any]] = None,
+    team: Optional[Dict[str, Any]] = None,
+    repository: Optional[Dict[str, Any]] = None,
+    count: int = 0,
+    audit_id: Optional[str] = None,
+) -> AuditEvent:
     """
     Create an audit event dictionary with a fixed data model
 
     Converts arguments to a dictionary.
     The Nones should be present in the dictionary.
     """
-    return locals()
+    return AuditEvent(type, org, member, team, repository, count, audit_id)
 
 
-def send_sns_trigger(action=None, org=None, repo=None, team=None, audit_id=None):
+def send_sns_trigger(
+    action: Optional[str] = None,
+    org: Optional[str] = None,
+    repo: Optional[Dict[str, Any]] = None,
+    team: Optional[Dict[str, Any]] = None,
+    audit_id: str = "",
+) -> None:
     """
     Create the SNS payload to trigger the next lambda invovation
     """
@@ -298,7 +339,12 @@ class IncompleteAuditError(Exception):
     Create a wrapper to log an
     """
 
-    def __init__(self, audit_id, message="Incomplete audit error", source=None):
+    def __init__(
+        self,
+        audit_id: str,
+        source: Union[str, Any],
+        message: Union[str, TypeError] = "Incomplete audit error",
+    ):
         self.audit_id = audit_id
         self.message = message
         self.source = source

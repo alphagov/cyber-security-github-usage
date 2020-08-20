@@ -1,6 +1,7 @@
 """ Handle events from pre-commit hook reporting """
 import json
 import os
+from typing import Any, Dict, List
 
 import audit
 import config
@@ -12,7 +13,7 @@ TOKEN_PREFIX = "/alert-processor/tokens/github/"
 API_ROOT = "https://api.github.com"
 
 
-def process_event(event):
+def process_event(event: Dict[str, Any]) -> List[bool]:
     """
     Read SNS messages from event and pass to notification handler
     """
@@ -24,7 +25,7 @@ def process_event(event):
     return responses
 
 
-def process_message(message):
+def process_message(message: Dict[str, Any]) -> Any:
     """
     Receive event body forwarded from lambda handler.
     """
@@ -42,6 +43,7 @@ def process_message(message):
         "log_org_repo_team_members": audit.log_org_repo_team_members,
     }
     action = message["action"]
+
     process_action = actions[action]
     success = process_action(message)
     if not success:
@@ -49,21 +51,24 @@ def process_message(message):
     return success
 
 
-def register(notification):
+def register(message: Dict[str, Any]) -> bool:
     """
     Register user.
 
     Record user token in SSM.
     Report to Splunk.
     """
-    username = notification["username"]
-    token = notification["user_secret"]
+    username = message["username"]
+
+    token = message["user_secret"]
+
     param = f"{TOKEN_PREFIX}{username}"
+
     param_set = config.set_ssm_param(param, token)
     return param_set
 
 
-def commit(message):
+def commit(message: Dict[str, Any]) -> bool:
     """
     Record a commit event to splunk.
 
@@ -72,13 +77,13 @@ def commit(message):
     return True
 
 
-def usage(message):
+def usage(message: Dict[str, Any]) -> Dict[str, Any]:
     """
     Compare registered users to org membership.
     """
     user_tokens = config.get_ssm_params(TOKEN_PREFIX)
 
-    org = os.environ.get("GITHUB_ORG")
+    org = os.environ["GITHUB_ORG"]
     members = github_api.get_member_logins(github_api.get_github_org_members(org))
 
     member_count = len(members)
