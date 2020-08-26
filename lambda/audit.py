@@ -6,10 +6,10 @@ from typing import Any, Dict, Optional, Union
 
 import boto3
 from botocore.exceptions import ClientError  # type: ignore
+from mypy_boto3_sns import SNSClient
 
 import github_api
 from logger import LOG
-from mypy_boto3_sns import SNSClient
 
 
 def start(_message: Dict[str, Any]) -> None:

@@ -2,9 +2,9 @@ from typing import Dict, Optional
 
 import boto3
 from botocore.exceptions import ClientError  # type: ignore
+from mypy_boto3_ssm import SSMClient
 
 from logger import LOG
-from mypy_boto3_ssm import SSMClient
 
 
 def get_ssm_param(param: str) -> Optional[str]:

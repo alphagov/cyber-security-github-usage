@@ -1,8 +1,8 @@
 import json
 
 import pytest
-
 import requests_mock
+
 from github_api import (
     get_github_org_members,
     get_member_logins,
