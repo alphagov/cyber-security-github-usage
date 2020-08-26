@@ -2,9 +2,9 @@ import json
 import os
 
 import pytest
+import stubs
 
 import audit
-import stubs
 
 
 @pytest.mark.usefixtures("event_body")
