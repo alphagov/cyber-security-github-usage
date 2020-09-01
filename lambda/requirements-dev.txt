@@ -6,4 +6,3 @@ pylint
 flake8
 requests_mock
 mypy
-boto3-stubs[sns, ssm, sqs]
