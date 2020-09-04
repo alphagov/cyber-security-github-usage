@@ -17,7 +17,7 @@ def get_message_body(message: Dict[str, Any]) -> Any:
 
     try:
         message_body = json.loads(message_text)
-    except (json.JSONDecodeError):
+    except (TypeError, json.JSONDecodeError):
         message_body = message_text
 
     return message_body
