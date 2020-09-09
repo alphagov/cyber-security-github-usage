@@ -2,9 +2,12 @@
 import json
 from typing import Any, Dict, List
 
+from logger import LOG
+
 
 def get_message_body(message: Dict[str, Any]) -> Any:
     """ Return json decoded message body from either SNS or SQS event model """
+    LOG.debug("Message: " + str(message))
     if "body" in message:
         message_text = message.get("body", "")
     elif (
@@ -27,6 +30,7 @@ def parse_messages(event: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Parse the escaped message body from each of the SQS messages in event.Records
     """
+    LOG.debug(str(event))
     use_default = False
     if "Records" in event:
         messages = [get_message_body(record) for record in event["Records"]]

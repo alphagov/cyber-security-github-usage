@@ -18,9 +18,13 @@ test: checks
 checks: clean
 	echo "⏳ running pipeline..."
 	set -e
+	echo "isorting"
 	isort --atomic -q .
+	echo "blacking"
 	black -q .
+	echo "flake8ing"
 	flake8 . --max-line-length=91
+	echo "mypying"
 	mypy --warn-unused-config \
              --disallow-any-generics \
              --disallow-subclassing-any \
