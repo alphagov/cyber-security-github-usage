@@ -1,7 +1,6 @@
 import json
 import os
 import uuid
-from dataclasses import dataclass
 from typing import Any, Dict, Optional, Union
 
 import boto3
@@ -12,7 +11,7 @@ import github_api
 from logger import LOG
 
 
-def start(_message: Dict[str, Any]) -> None:
+def start(message: Dict[str, Any]) -> None:
     """
     Start an audit of github membership
 
@@ -290,17 +289,6 @@ def publish_alert(audit_id: str, message: str) -> Any:
         return None
 
 
-@dataclass
-class AuditEvent:
-    type: Optional[str]
-    org: Optional[str]
-    member: Optional[Dict[str, Any]]
-    team: Optional[Dict[str, Any]]
-    repository: Optional[Dict[str, Any]]
-    count: int
-    audit_id: Optional[str]
-
-
 def make_audit_event(
     type: Optional[str] = None,
     org: Optional[str] = None,
@@ -309,14 +297,14 @@ def make_audit_event(
     repository: Optional[Dict[str, Any]] = None,
     count: int = 0,
     audit_id: Optional[str] = None,
-) -> AuditEvent:
+) -> Dict[str, Any]:
     """
     Create an audit event dictionary with a fixed data model
 
     Converts arguments to a dictionary.
     The Nones should be present in the dictionary.
     """
-    return AuditEvent(type, org, member, team, repository, count, audit_id)
+    return locals()
 
 
 def send_sns_trigger(
@@ -325,13 +313,14 @@ def send_sns_trigger(
     repo: Optional[Dict[str, Any]] = None,
     team: Optional[Dict[str, Any]] = None,
     audit_id: str = "",
-) -> None:
+) -> Any:
     """
     Create the SNS payload to trigger the next lambda invovation
     """
     event = locals()
     payload = create_sns_message(audit_id, event)
     response = publish_alert(audit_id, payload)
+    return response
 
 
 class IncompleteAuditError(Exception):

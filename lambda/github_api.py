@@ -37,15 +37,19 @@ def get_github_api_paged_data(url: str) -> List[Any]:
         page_items = 0
         page_url = f"{url}?page={page}&per_page={page_size}"
         headers = {"authorization": f"token {token}"}
-        response = requests.get(page_url, headers=headers).json()
-        if response:
+        response = requests.get(page_url, headers=headers)
+
+        if response.status_code == 200:
+            response_items = response.json()
             LOG.debug("Got item page %s for URL %s", page, url)
-            page_items = len(response)
-            for item in response:
+            page_items = len(response_items)
+            # append page to parent array
+            for item in response_items:
                 items.append(item)
         else:
-            LOG.error(response)
+            raise GithubApiError(response.text)
         page += 1
+        # this sleep is important to prevent rate limiting
         time.sleep(4)
 
     return items
@@ -104,3 +108,16 @@ def get_github_org_repo_contributors(org: str, repo: str) -> List[Dict[str, str]
 def get_member_logins(members: List[Dict[str, str]]) -> List[str]:
     """ Reduce a list of github member objects to a list of logins (usernames) """
     return [member["login"] for member in members]
+
+
+class GithubApiError(Exception):
+    """
+    Create a wrapper to log an
+    """
+
+    def __init__(
+        self, message: Union[str, TypeError] = "Incomplete audit error",
+    ):
+        self.message = message
+        super().__init__(self.message)
+        LOG.error({"error": "GithubApiError", "message": message})

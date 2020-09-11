@@ -29,25 +29,28 @@ def process_message(message: Dict[str, Any]) -> Any:
     """
     Receive event body forwarded from lambda handler.
     """
-    actions = {
-        "register": register,
-        "commit": commit,
-        "usage": usage,
-        "audit": audit.start,
-        "log_org_membership": audit.log_org_membership,
-        "log_org_teams": audit.log_org_teams,
-        "log_org_team_membership": audit.log_org_team_membership,
-        "log_org_team_repos": audit.log_org_team_repos,
-        "log_org_repos": audit.log_org_repos,
-        "log_org_repo_contributors": audit.log_org_repo_contributors,
-        "log_org_repo_team_members": audit.log_org_repo_team_members,
-    }
-    action = message["action"]
+    try:
+        actions = {
+            "register": register,
+            "commit": commit,
+            "usage": usage,
+            "audit": audit.start,
+            "log_org_membership": audit.log_org_membership,
+            "log_org_teams": audit.log_org_teams,
+            "log_org_team_membership": audit.log_org_team_membership,
+            "log_org_team_repos": audit.log_org_team_repos,
+            "log_org_repos": audit.log_org_repos,
+            "log_org_repo_contributors": audit.log_org_repo_contributors,
+            "log_org_repo_team_members": audit.log_org_repo_team_members,
+        }
+        action = message["action"]
 
-    process_action = actions[action]
-    success = process_action(message)
-    if not success:
-        LOG.error("Processing failed for %s", action)
+        process_action = actions[action]
+        success = process_action(message)
+        if not success:
+            LOG.error("Processing failed for %s", action)
+    except (audit.IncompleteAuditError, github_api.GithubApiError):
+        success = False
     return success
 
 
