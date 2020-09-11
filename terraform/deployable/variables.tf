@@ -16,7 +16,7 @@ variable "GITHUB_TOKEN" {
 variable "LOG_LEVEL" {
   description = "Set the lambda log level"
   type        = string
-  default     = "ERROR"
+  default     = "INFO"
 }
 
 variable "usage_cron_schedule" {
