@@ -59,24 +59,40 @@ blocks:
           tag: '1.2.8'
           username: ((docker_hub_username))
           password: ((docker_hub_password))
-  
 
 jobs:
+  - name: update-pipeline
+    serial: true
+    plan:
+      - get: cyber-security-github-usage-git
+        trigger: true
+
+      - set_pipeline: cyber-security-github-usage
+        file: cyber-security-github-usage-git/concourse/pipeline.yml
+    on_failure:
+      <<: *health_status_notify
+      params:
+        message: Pipeline update failed
+        health: unhealthy
+
   - name: lambda_test
     plan:
       - get: cyber-security-github-usage-git
+        passed: [update-pipeline]
         trigger: true
 
       - task: github_usage_test
         config:
           <<: *cyber_build_config
           inputs:
-          - name: cyber-security-github-usage-git
+            - name: cyber-security-github-usage-git
           run:
             path: /bin/bash
             args:
               - -c
               - |
+                set -x
+                set -e
                 cd lambda
                 pip install -r requirements-dev.txt
                 make test
@@ -100,12 +116,14 @@ jobs:
         config:
           <<: *cyber_build_config
           outputs:
-          - name: ssh
+            - name: ssh
           run:
             path: /bin/bash
             args:
               - -c
               - |
+                set -x
+                set -e
                 cat > deploy_key <<'EOF'
                 ((cyber-security-terraform-deploy-key))
                 EOF
@@ -124,14 +142,16 @@ jobs:
         config:
           <<: *cyber_build_config
           inputs:
-          - name: cyber-security-github-usage-git
+            - name: cyber-security-github-usage-git
           outputs:
-          - name: lambda_package
+            - name: lambda_package
           run:
             path: /bin/bash
             args:
               - -c
               - |
+                set -x
+                set -e
                 cd lambda
                 make zip
                 mv github_usage_lambda.zip ../../lambda_package
@@ -156,6 +176,8 @@ jobs:
             args:
               - -c
               - |
+                set -x
+                set -e
                 cd ..
                 cp lambda_package/github_usage_lambda.zip cyber-security-github-usage-git/lambda
                 workdir=$(pwd)
@@ -192,6 +214,8 @@ jobs:
             args:
               - -c
               - |
+                set -x
+                set -e
                 cd ..
                 cp lambda_package/github_usage_lambda.zip cyber-security-github-usage-git/lambda
                 workdir=$(pwd)
@@ -231,6 +255,8 @@ jobs:
             args:
               - -c
               - |
+                set -x
+                set -e
                 passed=true
                 monitored_accounts=$(ls service/github_usage/deployments)
                 for account_id in $monitored_accounts; do
@@ -286,6 +312,8 @@ jobs:
             args:
               - -c
               - |
+                set -x
+                set -e
                 cd ..
                 cp lambda_package/github_usage_lambda.zip cyber-security-github-usage-git/lambda
                 workdir=$(pwd)
@@ -325,6 +353,8 @@ jobs:
             args:
               - -c
               - |
+                set -x
+                set -e
                 passed=true
                 monitored_accounts=$(ls service/github_usage/deployments)
                 for account_id in $monitored_accounts; do
