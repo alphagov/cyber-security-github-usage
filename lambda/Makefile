@@ -24,20 +24,20 @@ checks: clean
 	black -q .
 	echo "flake8ing"
 	flake8 . --max-line-length=91
-	echo "mypying"
-	mypy --warn-unused-config \
-             --disallow-any-generics \
-             --disallow-subclassing-any \
-             --disallow-untyped-calls \
-             --disallow-untyped-defs \
-             --disallow-incomplete-defs \
-             --check-untyped-defs \
-             --no-implicit-optional \
-             --warn-redundant-casts \
-             --warn-unused-ignores \
-             --warn-return-any \
-             --no-implicit-reexport \
-             --strict-equality .
+	# echo "mypying"
+	# mypy --warn-unused-config \
+    #          --disallow-any-generics \
+    #          --disallow-subclassing-any \
+    #          --disallow-untyped-calls \
+    #          --disallow-untyped-defs \
+    #          --disallow-incomplete-defs \
+    #          --check-untyped-defs \
+    #          --no-implicit-optional \
+    #          --warn-redundant-casts \
+    #          --warn-unused-ignores \
+    #          --warn-return-any \
+    #          --no-implicit-reexport \
+    #          --strict-equality .
 	echo "✔️ Checks pipeline passed!"
 
 install:
