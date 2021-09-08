@@ -12,10 +12,8 @@ phases:
       - echo "Built zip file for lambda distribution"
 
 artifacts:
+  name: lambda_zip
   files:
-    - "**/*"
-  secondary-artifacts:
-    lambda_zip:
-      base-directory: "${CODEBUILD_SRC_DIR}/lambda"
-      files: 
-        - github_usage_lambda.zip
+    - github_usage_lambda.zip
+  discard-paths: no
+  base-directory: "${CODEBUILD_SRC_DIR}/lambda"
