@@ -22,17 +22,21 @@ variable "pipeline_name" {
   default = "github-usage"
 }
 
-# variable "github_pat" {
-#   description = "the github pat token to authorise access to the repo. "
-#   type        = string
-# }
-
-variable "output_artifact_path" {
-  type     = string
-  default  = "github-usage/output-artifacts"
-}
-
 variable "codebuild_image" {
   type    = string
   default = "gdscyber/cyber-security-cd-base-image:latest"
+}
+
+variable "staging_account_id" {
+  type    = string
+  default = "103495720024"
+}
+
+variable "prod_account_id" {
+  type    = string
+  default = "779799343306"
+}
+
+variable "deploy_key" {
+  type  = string
 }
