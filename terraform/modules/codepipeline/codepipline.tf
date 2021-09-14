@@ -21,7 +21,7 @@ resource "aws_codepipeline" "github-usage" {
       configuration = {
         ConnectionArn    = "arn:aws:codestar-connections:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:connection/${var.codestar_connection_id}"
         FullRepositoryId = "alphagov/cyber-security-github-usage"
-        BranchName       = "ce-260"
+        BranchName       = "master"
       }
     }
   }
