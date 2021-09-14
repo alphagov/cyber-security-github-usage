@@ -1,12 +1,12 @@
-module "codebuild-validate-terraform-staging" {
+module "codebuild-validate-terraform-prod" {
   source                      = "github.com/alphagov/cyber-security-shared-terraform-modules//codebuild/codebuild_validate_terraform"
   codebuild_service_role_name = var.codebuild_service_role_name
-  deployment_account_id       = var.staging_account_id
-  deployment_role_name        = "CodePipelineDeployerRole_${var.staging_account_id}"
-  terraform_directory         = "terraform/deployments/${var.staging_account_id}"
+  deployment_account_id       = var.prod_account_id
+  deployment_role_name        = "CodePipelineDeployerRole_${var.prod_account_id}"
+  terraform_directory         = "terraform/deployments/${var.prod_account_id}"
   codebuild_image             = var.codebuild_image
   pipeline_name               = var.pipeline_name
-  stage_name                  = "TerraformApplyStaging"
+  stage_name                  = "TerraformApplyProd"
   action_name                 = "Validate"
   environment                 = var.environment
   docker_hub_credentials      = var.docker_hub_credentials
