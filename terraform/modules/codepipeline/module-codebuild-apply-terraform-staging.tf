@@ -1,4 +1,4 @@
-module "codebuild-apply-teraform-staging" {
+module "codebuild-apply-terraform-staging" {
   source                      = "github.com/alphagov/cyber-security-shared-terraform-modules//codebuild/codebuild_apply_terraform"
   codebuild_service_role_name = var.codebuild_service_role_name
   deployment_account_id       = var.staging_account_id
