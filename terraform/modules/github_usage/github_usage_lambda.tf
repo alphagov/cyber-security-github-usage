@@ -36,22 +36,22 @@ data "template_file" "usage_event" {
   }
 }
 
-resource "aws_cloudwatch_event_target" "run_usage_every_x_minutes" {
-  count     = var.usage_cron_schedule == "" ? 0 : 1
-  rule      = element(aws_cloudwatch_event_rule.usage_run_schedule.*.name, 0)
-  target_id = aws_lambda_function.github_usage_lambda.function_name
-  arn       = aws_lambda_function.github_usage_lambda.arn
-  input     = data.template_file.usage_event.rendered
-}
+# resource "aws_cloudwatch_event_target" "run_usage_every_x_minutes" {
+#   count     = var.usage_cron_schedule == "" ? 0 : 1
+#   rule      = element(aws_cloudwatch_event_rule.usage_run_schedule.*.name, 0)
+#   target_id = aws_lambda_function.github_usage_lambda.function_name
+#   arn       = aws_lambda_function.github_usage_lambda.arn
+#   input     = data.template_file.usage_event.rendered
+# }
 
-resource "aws_lambda_permission" "allow_cloudwatch_to_invoke_usage_lambda" {
-  count         = var.usage_cron_schedule == "" ? 0 : 1
-  statement_id  = "AllowUsageExecutionFromCloudWatch"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.github_usage_lambda.function_name
-  principal     = "events.amazonaws.com"
-  source_arn    = element(aws_cloudwatch_event_rule.usage_run_schedule.*.arn, 0)
-}
+# resource "aws_lambda_permission" "allow_cloudwatch_to_invoke_usage_lambda" {
+#   count         = var.usage_cron_schedule == "" ? 0 : 1
+#   statement_id  = "AllowUsageExecutionFromCloudWatch"
+#   action        = "lambda:InvokeFunction"
+#   function_name = aws_lambda_function.github_usage_lambda.function_name
+#   principal     = "events.amazonaws.com"
+#   source_arn    = element(aws_cloudwatch_event_rule.usage_run_schedule.*.arn, 0)
+# }
 
 # Schedule membership audit = action:audit
 resource "aws_cloudwatch_event_rule" "audit_run_schedule" {
