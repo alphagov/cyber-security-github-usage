@@ -1,0 +1,32 @@
+version: 0.2
+
+env:
+  shell: bash
+
+phases:
+  build:
+    commands:
+      - set -e
+      - echo '[INFO] Invoking lambda'
+      - passed=true
+      - target_arn="arn:aws:iam::${ACCOUNT_ID}:role/CodePipelineDeployerRole_${ACCOUNT_ID}"
+      - source /usr/local/bin/sts-assume-role.sh "$target_arn"
+      - aws lambda invoke --function-name=github_usage_lambda --region=eu-west-2 response.json > status.json
+      - jq_type=$(cat response.json | jq -r type)
+      - if [[ $jq_type != 'array' ]]; then
+          passed=false;
+        fi
+      - jq_length=$(cat response.json | jq -r length)
+      - if [[ "$jq_length" != '1' ]]; then
+          passed=false;
+        fi
+      - status_code=$(cat status.json | jq -r .StatusCode)
+      - if [[ "$status_code" != "200" ]]; then
+          passed=false;
+        fi
+      - if [ "$passed" = true ]; then
+          echo "Passed";
+        else
+          echo "Failed";
+          exit 1;
+        fi    

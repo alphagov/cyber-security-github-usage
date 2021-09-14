@@ -116,7 +116,8 @@ class GithubApiError(Exception):
     """
 
     def __init__(
-        self, message: Union[str, TypeError] = "Incomplete audit error",
+        self,
+        message: Union[str, TypeError] = "Incomplete audit error",
     ):
         self.message = message
         super().__init__(self.message)

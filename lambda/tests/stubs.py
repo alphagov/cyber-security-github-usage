@@ -147,11 +147,15 @@ def mock_ssm_usage():
     )
 
     stubber.add_response(
-        "delete_parameter", {}, {"Name": "/alert-processor/tokens/github/user-a"},
+        "delete_parameter",
+        {},
+        {"Name": "/alert-processor/tokens/github/user-a"},
     )
 
     stubber.add_response(
-        "delete_parameter", {}, {"Name": "/alert-processor/tokens/github/user-b"},
+        "delete_parameter",
+        {},
+        {"Name": "/alert-processor/tokens/github/user-b"},
     )
 
     stubber.activate()

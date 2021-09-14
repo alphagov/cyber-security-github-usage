@@ -1,0 +1,14 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - set -e
+      - echo '[INFO] Installing requirements'
+      - cd lambda
+      - pip install -r requirements-dev.txt        
+  build:
+    commands:
+      - echo '[INFO] Testing lambda'
+      - make test
+      - echo '[INFO] Linting and tests passed'

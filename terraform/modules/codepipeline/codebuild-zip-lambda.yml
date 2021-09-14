@@ -1,0 +1,19 @@
+version: 0.2
+
+env:
+  shell: bash
+
+phases:
+  build:
+    commands:
+      - set -e
+      - cd lambda
+      - make zip
+      - echo "Built zip file for lambda distribution"
+
+artifacts:
+  name: lambda_zip
+  files:
+    - github_usage_lambda.zip
+  discard-paths: no
+  base-directory: "${CODEBUILD_SRC_DIR}/lambda"

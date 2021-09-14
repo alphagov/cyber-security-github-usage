@@ -67,7 +67,10 @@ def log_org_teams(message: Dict[str, Any]) -> None:
             )
             LOG.info(event)
             send_sns_trigger(
-                action="log_org_team_membership", org=org, team=team, audit_id=audit_id,
+                action="log_org_team_membership",
+                org=org,
+                team=team,
+                audit_id=audit_id,
             )
 
             send_sns_trigger(
@@ -107,7 +110,9 @@ def log_org_team_membership(message: Dict[str, Any]) -> None:
                 LOG.info(event)
         else:
             raise IncompleteAuditError(
-                audit_id=audit_id, source=message, message="Team not specified",
+                audit_id=audit_id,
+                source=message,
+                message="Team not specified",
             )
 
 
@@ -149,7 +154,9 @@ def log_org_team_repos(message: Dict[str, Any]) -> None:
                 )
         else:
             raise IncompleteAuditError(
-                audit_id=audit_id, source=message, message="Missing parameter",
+                audit_id=audit_id,
+                source=message,
+                message="Missing parameter",
             )
 
 
