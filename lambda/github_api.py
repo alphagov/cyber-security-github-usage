@@ -100,7 +100,11 @@ def get_github_org_team_repositories(
 
 def get_github_org_repo_contributors(org: str, repo: str) -> List[Dict[str, str]]:
     """ Get users granted individual access to a given repository """
-    url = f"{API_ROOT}/repos/{org}/{repo}/contributors"
+    # The contributors API endpoint lists all users with access to the repo
+    # The ?affiliation=direct query string lists only users who have
+    # direct access - This is important for the leavers process since it will
+    # persist after the user leaves the alphagov membership
+    url = f"{API_ROOT}/repos/{org}/{repo}/contributors?affiliation=direct"
     contributors = get_github_api_paged_data(url)
     return contributors
 
