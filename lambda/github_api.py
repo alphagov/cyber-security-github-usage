@@ -27,7 +27,12 @@ def get_github_access_token() -> Optional[str]:
     return ACCESS_TOKEN
 
 
-def get_github_api_paged_data(url: str) -> List[Any]:
+def get_github_api_paged_data(url: str, params: Dict[str, str] = {}) -> List[Any]:
+    """
+    Iterate through all available pages for endpoint
+
+    Optional query string parameters as 2nd argument
+    """
     token = get_github_access_token()
     page = 1
     page_size = 100
@@ -37,7 +42,7 @@ def get_github_api_paged_data(url: str) -> List[Any]:
         page_items = 0
         page_url = f"{url}?page={page}&per_page={page_size}"
         headers = {"authorization": f"token {token}"}
-        response = requests.get(page_url, headers=headers)
+        response = requests.get(page_url, params=params, headers=headers)
 
         if response.status_code == 200:
             response_items = response.json()
@@ -104,8 +109,8 @@ def get_github_org_repo_contributors(org: str, repo: str) -> List[Dict[str, str]
     # The ?affiliation=direct query string lists only users who have
     # direct access - This is important for the leavers process since it will
     # persist after the user leaves the alphagov membership
-    url = f"{API_ROOT}/repos/{org}/{repo}/contributors?affiliation=direct"
-    contributors = get_github_api_paged_data(url)
+    url = f"{API_ROOT}/repos/{org}/{repo}/contributors"
+    contributors = get_github_api_paged_data(url, {"affiliation": "direct"})
     return contributors
 
 
@@ -120,8 +125,7 @@ class GithubApiError(Exception):
     """
 
     def __init__(
-        self,
-        message: Union[str, TypeError] = "Incomplete audit error",
+        self, message: Union[str, TypeError] = "Incomplete audit error",
     ):
         self.message = message
         super().__init__(self.message)
