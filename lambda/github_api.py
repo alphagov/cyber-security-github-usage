@@ -110,7 +110,7 @@ def get_github_org_repo_contributors(org: str, repo: str) -> List[Dict[str, str]
     # direct access - This is important for the leavers process since it will
     # persist after the user leaves the alphagov membership
     url = f"{API_ROOT}/repos/{org}/{repo}/contributors"
-    contributors = get_github_api_paged_data(url, {"affiliation": "direct"})
+    contributors = get_github_api_paged_data(url)
     return contributors
 
 
