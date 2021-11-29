@@ -209,6 +209,46 @@ def log_org_repo_contributors(message: Dict[str, Any]) -> None:
                 audit_id=audit_id, source=message, message="Repo not specified"
             )
 
+def log_org_repo_collaborators(message: Dict[str, Any]) -> None:
+    """ Audit github organization repository contributors """
+    org = os.environ["GITHUB_ORG"]
+    repo = message.get("repo", None)
+    audit_id = message.get("audit_id")
+    if audit_id:
+        LOG.info(
+            {
+                "action": "Audit organization org repo contributors",
+                "org": org,
+                "repo": repo,
+                "audit_id": audit_id,
+            }
+        )
+
+        if repo:
+            repo_name = repo["name"]
+            outside_collaborators = github_api.get_github_org_repo_collaborators(org, repo_name, {"affiliation": "outside"})
+            for outside_collaborator in outside_collaborators:
+                event = make_audit_event(
+                    type="OrganizationRepoCollaboratorsOutside",
+                    org=org,
+                    member=outside_collaborator,
+                    repository=repo,
+                    audit_id=audit_id,
+                )
+            collaborators_direct = github_api.get_github_org_repo_collaborators(org, repo_name, {"affiliation": "direct"})
+            for direct_collaborator in direct_collaborators:
+                event = make_audit_event(
+                    type="OrganizationRepoCollaboratorsDirect",
+                    org=org,
+                    member=collaborators_direct,
+                    repository=repo,
+                    audit_id=audit_id,
+                )
+                LOG.info(event)
+        else:
+            raise IncompleteAuditError(
+                audit_id=audit_id, source=message, message="Repo not specified"
+            )
 
 def log_org_repo_team_members(message: Dict[str, Any]) -> None:
     """ Audit github organization repository team members """
