@@ -176,6 +176,13 @@ def log_org_repos(message: Dict[str, Union[str, Dict[str, str]]]) -> None:
                 audit_id=audit_id,
             )
 
+            send_sns_trigger(
+                action="log_org_repo_collaborators",
+                org=org,
+                repo=repo,
+                audit_id=audit_id,
+            )
+
 
 def log_org_repo_contributors(message: Dict[str, Any]) -> None:
     """ Audit github organization repository contributors """
@@ -210,14 +217,14 @@ def log_org_repo_contributors(message: Dict[str, Any]) -> None:
             )
 
 def log_org_repo_collaborators(message: Dict[str, Any]) -> None:
-    """ Audit github organization repository contributors """
+    """ Audit github organization repository collaborators """
     org = os.environ["GITHUB_ORG"]
     repo = message.get("repo", None)
     audit_id = message.get("audit_id")
     if audit_id:
         LOG.info(
             {
-                "action": "Audit organization org repo contributors",
+                "action": "Audit organization org repo collaborators",
                 "org": org,
                 "repo": repo,
                 "audit_id": audit_id,
