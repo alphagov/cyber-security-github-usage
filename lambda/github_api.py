@@ -110,8 +110,18 @@ def get_github_org_repo_contributors(org: str, repo: str) -> List[Dict[str, str]
     # direct access - This is important for the leavers process since it will
     # persist after the user leaves the alphagov membership
     url = f"{API_ROOT}/repos/{org}/{repo}/contributors"
-    contributors = get_github_api_paged_data(url, {"affiliation": "direct"})
+    contributors = get_github_api_paged_data(url)
     return contributors
+
+def get_github_org_repo_collaborators(org: str, repo: str, params: Dict[str, str] = {}) -> List[Dict[str, str]]:
+    """ Get users granted individual access to a given repository """
+    # The collaborators API endpoint lists all users with access to the repo
+    # The ?affiliation=direct query string lists only users who have
+    # direct access - This is important for the leavers process since it will
+    # persist after the user leaves the alphagov membership
+    url = f"{API_ROOT}/repos/{org}/{repo}/collaborators"
+    collaborators = get_github_api_paged_data(url, params)
+    return collaborators
 
 
 def get_member_logins(members: List[Dict[str, str]]) -> List[str]:
