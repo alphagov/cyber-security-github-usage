@@ -236,7 +236,7 @@ def log_org_repo_collaborators(message: Dict[str, Any]) -> None:
             outside_collaborators = github_api.get_github_org_repo_collaborators(org, repo_name, {"affiliation": "outside"})
             for outside_collaborator in outside_collaborators:
                 event = make_audit_event(
-                    type="OrganizationRepoCollaboratorsOutside",
+                    type="OrganizationRepoCollaboratorOutside",
                     org=org,
                     member=outside_collaborator,
                     repository=repo,
@@ -245,9 +245,9 @@ def log_org_repo_collaborators(message: Dict[str, Any]) -> None:
             direct_collaborators = github_api.get_github_org_repo_collaborators(org, repo_name, {"affiliation": "direct"})
             for direct_collaborator in direct_collaborators:
                 event = make_audit_event(
-                    type="OrganizationRepoCollaboratorsDirect",
+                    type="OrganizationRepoCollaboratorDirect",
                     org=org,
-                    member=collaborators_direct,
+                    member=direct_collaborator,
                     repository=repo,
                     audit_id=audit_id,
                 )
