@@ -182,6 +182,8 @@ def log_org_repos(message: Dict[str, Union[str, Dict[str, str]]]) -> None:
                 repo=repo,
                 audit_id=audit_id,
             )
+    else: 
+        LOG.error("No audit ID specified") 
 
 
 def log_org_repo_contributors(message: Dict[str, Any]) -> None:
@@ -328,7 +330,6 @@ def publish_alert(audit_id: str, message: str) -> Any:
             MessageStructure="json",
         )
         LOG.debug("SNS Response: %s", sns_response)
-        LOG.info("Alert ed to SNS")
 
         return sns_response
     except ClientError as err:
