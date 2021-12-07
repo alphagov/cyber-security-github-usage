@@ -244,6 +244,7 @@ def log_org_repo_collaborators(message: Dict[str, Any]) -> None:
                     repository=repo,
                     audit_id=audit_id,
                 )
+                LOG.info(event)
             direct_collaborators = github_api.get_github_org_repo_collaborators(org, repo_name, {"affiliation": "direct"})
             for direct_collaborator in direct_collaborators:
                 event = make_audit_event(
